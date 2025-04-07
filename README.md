@@ -1,54 +1,50 @@
-# React + TypeScript + Vite
+# Simulador de Investimentos
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+O projeto consiste em uma página web interativa que permite aos usuários simular diferentes estratégias de investimento utilizando dados financeiros atualizados fornecidos pela [API Dados de Mercado](https://www.dadosdemercado.com.br/api/docs).
 
-Currently, two official plugins are available:
+A plataforma é voltada tanto para iniciantes quanto para investidores mais avançados, oferecendo insights sobre como distribuir seus investimentos entre ativos de renda fixa e **renda variável.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## Expanding the ESLint configuration
+## Funcionalidades Principais
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Entrada de dados do usuário:
+- Montante inicial disponível para investimento.
+- Tempo previsto para o investimento (_curto, médio ou longo prazo_).
+- Percentual desejado para cada tipo de investimento (ex.: 50% em renda fixa, 50% em renda variável).
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+### Tipos de investimento suportados:
+- **Renda Fixa**: Tesouro Direto, CDBs, LCIs, LCAs, entre outros.
+- **Renda Variável**: Ações, Fundos Imobiliários, ETFs, Criptomoedas.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Análise do perfil do investidor:
+Com base nas escolhas, o sistema classifica o perfil do usuário como:
+- Conservador
+- Moderado
+- Arrojado
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Simulação do retorno dos investimentos:
+- Cálculo aproximado dos rendimentos com base nos dados da API.
+- Exibição de gráficos comparativos para facilitar a visualização da evolução do capital.
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+### Feedback sobre a estratégia do usuário:
+- Comentários sobre os riscos e a diversificação da carteira.
+- Sugestões de melhorias com base no perfil do investidor.
+
+---
+
+## Equipe
+
+- Matheus Sarno Muiños
+- Hugo Mamona Marques de Andrade
+- Danilo Santana Garcia
+
+- **Docente:** Ariel Menezes de Almeida Júnior
+
+---
+
+## Links Importantes
+
+- [Documentação da API Dados de Mercado](https://www.dadosdemercado.com.br/api/docs)
+- [Repositório no GitHub](https://github.com/MatheusMuinos/simula.invest_Full_stack.git)
+- [Página no Vercel (Deploy)](https://simula-invest-full-stack-jbpj.vercel.app/)
