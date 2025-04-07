@@ -1,35 +1,44 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Scroll } from "./components/scroll";
+import { Simulador } from "./components/simulador";
+import "./index.css";
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <header>
+        <nav className="conteiner">
+          <div className="logo">
+            Simula<span>Invest</span>
+          </div>
+          <div className="botoes-acesso">
+            <Scroll href="#simulador" className="botao botao-primario">
+              Começar
+            </Scroll>
+          </div>
+        </nav>
+      </header>
+      <div className="conteiner">
+      <section className="destaque">
+        <div className="conteudo-destaque">
+          <h1 className="titulo-destaque">Simule Sua Jornada de Investimentos</h1>
+          <p className="subtitulo-destaque">
+            SimulaInvest ajuda você a visualizar seu futuro financeiro com
+            nossas poderosas ferramentas de simulação de investimentos.
+          </p>
+          <Scroll href="#simulador" className="botao botao-primario">
+            Comece a Simular Agora
+          </Scroll>
+        </div>
+        <div className="imagem-destaque">
+          <img
+            src="/src/assets/grafico.png"
+            alt="Ilustração de crescimento de investimento"
+          />
+        </div>
+      </section>
+      <Simulador />
+    </div>
     </>
-  )
+  );
 }
-
-export default App
+export default App;
