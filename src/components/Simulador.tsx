@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Scroll } from './scroll';
+import { Scroll } from './Scroll';
 
 export const Simulador = () => {
   const [valores, setValores] = useState({

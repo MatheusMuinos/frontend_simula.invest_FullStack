@@ -1,5 +1,5 @@
-import { Scroll } from "./components/scroll";
-import { Simulador } from "./components/simulador";
+import { Scroll } from "./components/Scroll";
+import { Simulador } from "./components/Simulador";
 import "./index.css";
 
 function App() {
