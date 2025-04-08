@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Scroll } from "./Scroll";
+import axios from "axios"; 
 
 export const Simulador = () => {
   const [valores, setValores] = useState({
@@ -52,6 +53,33 @@ export const Simulador = () => {
       style: "currency",
       currency: "BRL",
     }).format(valor);
+  };
+
+
+  const calcularInvestimento = async () => {
+    try {
+
+      const investimentoInicial = stringParaFloat(valores.inicial);
+      const contribuicaoMensal = stringParaFloat(valores.mensal);
+      const meses = parseInt(valores.meses.toString());   
+      const inflacao = stringParaFloat(valores.inflacao);       
+
+      const response = await axios.post("https://www.dadosdemercado.com.br/api/simular", {
+        investimento_inicial: investimentoInicial,
+        contribuicao_mensal: contribuicaoMensal,
+        meses,
+        inflacao,
+      });
+
+      setResultados({
+        valorFuturo: response.data.valor_futuro,
+        totalInvestido: response.data.total_investido,
+        retorno: response.data.retorno,
+        ajusteInflacao: response.data.ajuste_inflacao,
+      });
+    } catch (error) {
+      console.error("Erro ao calcular investimento:", error);
+    }
   };
 
   return (
