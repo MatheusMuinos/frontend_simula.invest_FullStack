@@ -1,4 +1,3 @@
-/* index.css */
 :root {
   --cor-primaria: #2563eb;
   --cor-secundaria: #6366f1;
@@ -12,7 +11,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
@@ -41,6 +40,11 @@ nav.conteiner {
   font-size: 1.8rem;
   font-weight: 700;
   color: var(--cor-primaria);
+}
+
+.logo a {
+  text-decoration: none;
+  color: inherit;
 }
 
 .logo span {
@@ -128,12 +132,6 @@ nav.conteiner {
   margin-bottom: 2rem;
 }
 
-.imagem-destaque {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-}
-
 .simulador {
   background-color: white;
   border-radius: 0.8rem;
@@ -168,7 +166,8 @@ label {
   color: var(--cor-cinza);
 }
 
-input, select {
+input,
+select {
   padding: 0.8rem;
   border: 1px solid #e2e8f0;
   border-radius: 0.4rem;
@@ -222,7 +221,6 @@ input, select {
   color: var(--cor-cinza);
 }
 
-/* Animation styles */
 .highlight {
   animation: highlight 2s;
 }
@@ -236,4 +234,10 @@ input, select {
     background-color: transparent;
     box-shadow: 0 0 0 0 transparent;
   }
+}
+
+.container-grafico {
+  padding: 5rem;
+  margin: 2rem 0;
+  width: 100%;
 }

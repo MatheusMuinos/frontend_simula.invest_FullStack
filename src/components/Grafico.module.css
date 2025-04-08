@@ -1,0 +1,35 @@
+.container {
+  width: 600px;
+  font-family: sans-serif;
+  position: relative;
+}
+
+.grafico {
+  overflow: visible;
+}
+
+.eixo {
+  stroke: #ccc;
+  stroke-width: 1;
+}
+
+.linhaGrade {
+  stroke: #eee;
+  stroke-width: 1;
+}
+
+.rotuloGrade {
+  font-size: 1rem;
+  fill: #666;
+  text-anchor: end;
+}
+
+.pontoDado {
+  fill: #4bc0c0;
+}
+
+.rotuloEixoX {
+  font-size: 1rem;
+  fill: #666;
+  text-anchor: middle;
+}
