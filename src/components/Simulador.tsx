@@ -1,34 +1,56 @@
-import { useState } from 'react';
-import { Scroll } from './Scroll';
+import { useState } from "react";
+import { Scroll } from "./Scroll";
 
 export const Simulador = () => {
   const [valores, setValores] = useState({
-    initial: 10000,
-    monthly: 500,
-    years: 30,
-    return: 8,
-    inflation: 2.5,
-    tax: 15
+    inicial: 0,
+    mensal: 0,
+    meses: 0,
+    inflacao: 0,
   });
 
-  const [resultados] = useState({
-    futureValue: 725604,
-    totalContributions: 437258,
-    investmentReturns: 288346,
-    inflationAdjusted: 394521
+  const [resultados, setResultados] = useState({
+    valorFuturo: 0,
+    totalInvestido: 0,
+    retorno: 0,
+    ajusteInflacao: 0,
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setValores({
-      ...valores,
-      [e.target.id]: parseFloat(e.target.value) || 0
-    });
+  const formatarInput = (entrada: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = entrada.target;
+
+    if (id === "inicial" || id === "mensal" || id === "inflacao") {
+      const inputDefault = value.replace(/[^\d,]/g, "");
+      const [inteiro, decimal] = inputDefault.split(",");
+      const inteiroFormatado = inteiro
+        ? parseInt(inteiro.replace(/\D/g, ""), 10).toLocaleString("pt-BR")
+        : "";
+
+      const valorFormatado =
+        decimal !== undefined
+          ? `${inteiroFormatado},${decimal}`
+          : inteiroFormatado;
+
+      setValores({
+        ...valores,
+        [id]: valorFormatado,
+      });
+    } else {
+      setValores({
+        ...valores,
+        [id]: value,
+      });
+    }
+  };
+
+  const stringParaFloat = (valor: string) => {
+    return parseFloat(valor.replace(/\./g, "").replace(",", ".")) || 0;
   };
 
   const formatarMoeda = (valor: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
     }).format(valor);
   };
 
@@ -37,107 +59,88 @@ export const Simulador = () => {
       <h2 className="titulo-simulador">
         Simulador de Crescimento de Investimentos
       </h2>
-      
+
       <div className="formulario-simulador">
         <div className="grupo-formulario">
-          <label htmlFor="initial">Investimento Inicial (R$)</label>
+          <label htmlFor="inicial">Investimento Inicial (R$)</label>
           <input
-            type="number"
-            id="initial"
-            value={valores.initial}
-            min="0"
-            onChange={handleChange}
+            type="text"
+            id="inicial"
+            value={valores.inicial}
+            inputMode="numeric"
+            onChange={formatarInput}
           />
         </div>
-        
+
         <div className="grupo-formulario">
-          <label htmlFor="monthly">Contribuição Mensal (R$)</label>
+          <label htmlFor="mensal">Contribuição Mensal (R$)</label>
           <input
-            type="number"
-            id="monthly"
-            value={valores.monthly}
-            min="0"
-            onChange={handleChange}
+            type="text"
+            id="mensal"
+            value={valores.mensal}
+            inputMode="numeric"
+            onChange={formatarInput}
           />
         </div>
-        
+
         <div className="grupo-formulario">
-          <label htmlFor="years">Período de Investimento (Anos)</label>
+          <label htmlFor="meses">Período de Investimento (Meses)</label>
           <input
             type="number"
-            id="years"
-            value={valores.years}
-            min="1"
-            max="50"
-            onChange={handleChange}
+            id="meses"
+            value={valores.meses}
+            min="0"
+            max="9999"
+            onChange={formatarInput}
           />
         </div>
-        
+
         <div className="grupo-formulario">
-          <label htmlFor="return">Retorno Anual Esperado (%)</label>
+          <label htmlFor="inflacao">Taxa de Inflação Esperada (%)</label>
           <input
-            type="number"
-            id="return"
-            value={valores.return}
-            min="0"
-            max="30"
-            step="0.1"
-            onChange={handleChange}
-          />
-        </div>
-        
-        <div className="grupo-formulario">
-          <label htmlFor="inflation">Taxa de Inflação Esperada (%)</label>
-          <input
-            type="number"
-            id="inflation"
-            value={valores.inflation}
-            min="0"
-            max="20"
-            step="0.1"
-            onChange={handleChange}
-          />
-        </div>
-        
-        <div className="grupo-formulario">
-          <label htmlFor="tax">Alíquota de Imposto (%)</label>
-          <input
-            type="number"
-            id="tax"
-            value={valores.tax}
-            min="0"
-            max="50"
-            onChange={handleChange}
+            type="text"
+            id="inflacao"
+            value={valores.inflacao}
+            inputMode="numeric"
+            onChange={formatarInput}
           />
         </div>
       </div>
 
-      <Scroll 
-        href="#" 
-        className="botao botao-primario" 
-        style={{ display: 'block', width: '200px', margin: '0 auto 2rem' }}
+      <Scroll
+        href="#"
+        className="botao botao-primario"
+        style={{ display: "block", width: "200px", margin: "0 auto 2rem" }}
       >
         Calcular Resultados
       </Scroll>
 
       <div className="resultados">
         <div className="cartao-resultado">
-          <div className="valor-resultado">{formatarMoeda(resultados.futureValue)}</div>
+          <div className="valor-resultado">
+            {formatarMoeda(resultados.valorFuturo)}
+          </div>
           <div className="rotulo-resultado">Valor Futuro</div>
         </div>
-        
+
         <div className="cartao-resultado">
-          <div className="valor-resultado">{formatarMoeda(resultados.totalContributions)}</div>
-          <div className="rotulo-resultado">Total de Contribuições</div>
+          <div className="valor-resultado">
+            {formatarMoeda(resultados.totalInvestido)}
+          </div>
+          <div className="rotulo-resultado">Total Investido</div>
         </div>
-        
+
         <div className="cartao-resultado">
-          <div className="valor-resultado">{formatarMoeda(resultados.investmentReturns)}</div>
+          <div className="valor-resultado">
+            {formatarMoeda(resultados.retorno)}
+          </div>
           <div className="rotulo-resultado">Retornos do Investimento</div>
         </div>
-        
+
         <div className="cartao-resultado">
-          <div className="valor-resultado">{formatarMoeda(resultados.inflationAdjusted)}</div>
+          <div className="valor-resultado">
+            {formatarMoeda(resultados.ajusteInflacao)}
+          </div>
           <div className="rotulo-resultado">Valor Ajustado pela Inflação</div>
         </div>
       </div>
