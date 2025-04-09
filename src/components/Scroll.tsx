@@ -1,10 +1,11 @@
-import { ReactNode, MouseEvent, CSSProperties } from "react";
+import { ReactNode, MouseEvent, CSSProperties, MouseEventHandler } from "react";
 
 type ScrollProps = {
   href: string;
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
 };
 
 export const Scroll = ({
@@ -12,6 +13,7 @@ export const Scroll = ({
   children,
   className = "",
   style,
+  onClick,
 }: ScrollProps) => {
   const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (href.startsWith("#")) {
@@ -26,6 +28,11 @@ export const Scroll = ({
           elementoAlvo.scrollIntoView({ behavior: "smooth" });
         }, 100);
       }
+    }
+
+    // tive que adicionar isso pra chamar o onClick
+    if (onClick) {
+      onClick(e);
     }
   };
 
