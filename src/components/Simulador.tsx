@@ -89,8 +89,13 @@ export const Simulador = () => {
 
   const stringParaFloat = (valor: string) => parseFloat(valor.replace(/\./g, "").replace(",", ".")) || 0;
 
-  const formatarMoeda = (valor: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
+  const formatarMoeda = (valor: number) => {
+    const formatted = new Intl.NumberFormat("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(valor);
+    return `$${formatted}`;
+  };
 
   const obterDadosAcao = async (): Promise<DadosAcao> => {
     const symbol = "AAPL";
@@ -171,12 +176,12 @@ export const Simulador = () => {
 
       <div className="formulario-simulador">
         <div className="grupo-formulario">
-          <label htmlFor="inicial">Investimento Inicial (R$)</label>
+          <label htmlFor="inicial">Investimento Inicial ($)</label>
           <input type="text" id="inicial" value={valores.inicial} inputMode="numeric" onChange={formatarInput} />
         </div>
 
         <div className="grupo-formulario">
-          <label htmlFor="mensal">Contribuição Mensal (R$)</label>
+          <label htmlFor="mensal">Contribuição Mensal ($)</label>
           <input type="text" id="mensal" value={valores.mensal} inputMode="numeric" onChange={formatarInput} />
         </div>
 
