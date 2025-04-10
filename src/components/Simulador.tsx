@@ -1,14 +1,15 @@
 import { useState } from "react";
 import axios from "axios";
 import { Scroll } from "./Scroll";
+import Grafico from "./Grafico";
 
 type Valores = {
   inicial: string;
   mensal: string;
   meses: number;
   inflacao: string;
-  tipoInvestimento: string; // Tipo de investimento (Ações ou Renda Fixa)
-  tipoRendaFixa: string; // Tipo de Renda Fixa (CDB, Tesouro Direto, etc.)
+  tipoInvestimento: string;
+  tipoRendaFixa: string;
 };
 
 type Resultados = {
@@ -18,19 +19,19 @@ type Resultados = {
   ajusteInflacao: number;
 };
 
-// Tipagem para a resposta da API Alpha Vantage (dados de ações)
-type ApiResponse = {
-  "Time Series (Daily)": Record<string, { "4. close": string }>;
+type DadosAcao = {
+  avgMonthlyGrowth: number;
+  success: boolean;
 };
 
 export const Simulador = () => {
   const [valores, setValores] = useState<Valores>({
-    inicial: "0",
-    mensal: "0",
-    meses: 0,
-    inflacao: "0",
-    tipoInvestimento: "acoes", // Valor padrão
-    tipoRendaFixa: "cdb", // Tipo padrão de Renda Fixa
+    inicial: "1000",
+    mensal: "100",
+    meses: 12,
+    inflacao: "5",
+    tipoInvestimento: "acoes",
+    tipoRendaFixa: "cdb",
   });
 
   const [resultados, setResultados] = useState<Resultados>({
@@ -40,39 +41,32 @@ export const Simulador = () => {
     ajusteInflacao: 0,
   });
 
-  const formatarInput = (entrada: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = entrada.target;
+  const [dadosGrafico, setDadosGrafico] = useState<{ labels: string[]; values: number[] }>({
+    labels: [],
+    values: [],
+  });
 
+  const [carregando, setCarregando] = useState(false);
+  const [erroApi, setErroApi] = useState("");
+
+  const formatarInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
     if (id === "inicial" || id === "mensal" || id === "inflacao") {
-      const inputDefault = value.replace(/[^\d,]/g, "");
-      const [inteiro, decimal] = inputDefault.split(",");
-      const inteiroFormatado = inteiro
+      const cleanedValue = value.replace(/[^\d,]/g, "");
+      const [inteiro, decimal] = cleanedValue.split(",");
+      const formattedInt = inteiro
         ? parseInt(inteiro.replace(/\D/g, ""), 10).toLocaleString("pt-BR")
         : "";
-
-      const valorFormatado =
-        decimal !== undefined
-          ? `${inteiroFormatado},${decimal}`
-          : inteiroFormatado;
-
-      setValores({
-        ...valores,
-        [id]: valorFormatado,
-      });
+      const formattedValue = decimal !== undefined ? `${formattedInt},${decimal}` : formattedInt;
+      setValores((prev) => ({ ...prev, [id]: formattedValue }));
     } else {
-      setValores({
-        ...valores,
-        [id]: value,
-      });
+      setValores((prev) => ({ ...prev, [id]: value }));
     }
   };
 
-  const formatarSelect = (entrada: React.ChangeEvent<HTMLSelectElement>) => {
-    const { id, value } = entrada.target;
-    setValores({
-      ...valores,
-      [id]: value,
-    });
+  const formatarSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { id, value } = e.target;
+    setValores((prev) => ({ ...prev, [id]: value }));
   };
 
   const stringParaFloat = (valor: string) => {
@@ -86,88 +80,102 @@ export const Simulador = () => {
     }).format(valor);
   };
 
-  
-  const obterCotacaoAcao = async (acao: string) => {
-    const apiKey = "O96I16GWZFH9OFYS"; 
-    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${acao}&apikey=${apiKey}`;
+  const taxasRetorno = {
+    acoes: 0.01,
+    "renda-fixa": {
+      cdb: 0.005,
+      "tesouro-direto": 0.0035,
+      lci: 0.004,
+      lca: 0.004,
+      lc: 0.0045,
+      debentures: 0.006,
+      cri: 0.005,
+      cra: 0.005,
+      "fundos-renda-fixa": 0.0045,
+      poupanca: 0.003,
+    },
+  };
+
+  const obterDadosAcao = async (): Promise<DadosAcao> => {
+    const API_KEY = "O96I16GWZFH9OFYS";
+    const symbol = "AAPL";
 
     try {
-      const response = await axios.get<ApiResponse>(url);
-      const data = response.data["Time Series (Daily)"];
-      
-    
-      const precoInicial = parseFloat(Object.values(data)[0]["4. close"]); 
-      const precoFinal = parseFloat(Object.values(data)[valores.meses - 1]["4. close"]);
-      return { precoInicial, precoFinal };
+      let response = await axios.get(
+        `https://www.alphavantage.co/query?function=TIME_SERIES_MONTHLY&symbol=${symbol}&apikey=${API_KEY}`
+      );
+
+      if (response.data["Time Series (Monthly)"]) {
+        const monthlyData = response.data["Time Series (Monthly)"];
+        const closes = Object.values(monthlyData).map((entry: any) => parseFloat(entry["4. close"]));
+        let totalGrowth = 0;
+        for (let i = 1; i < closes.length; i++) {
+          totalGrowth += (closes[i] - closes[i - 1]) / closes[i - 1];
+        }
+        const avgMonthlyGrowth = totalGrowth / (closes.length - 1);
+        return { avgMonthlyGrowth, success: true };
+      }
+
+      throw new Error("Sem dados mensais disponíveis");
     } catch (error) {
-      console.error("Erro ao obter cotação de ação:", error);
-      return { precoInicial: 0, precoFinal: 0 };
+      console.error("Erro na API:", error);
+      return { avgMonthlyGrowth: taxasRetorno.acoes, success: false };
     }
   };
 
-  // taxas
-  const taxas: Record<string, number> = {
-    cdb: 0.5 / 100, // 0.5% ao mês
-    "tesouro-direto": 0.35 / 100, // 0.35% ao mês
-    lci: 0.4 / 100, // 0.4% ao mês
-    lca: 0.4 / 100, // 0.4% ao mês
-    lc: 0.45 / 100, // 0.45% ao mês
-    debentures: 0.6 / 100, // 0.6% ao mês
-    cri: 0.5 / 100, // 0.5% ao mês
-    cra: 0.5 / 100, // 0.5% ao mês
-    "fundos-renda-fixa": 0.45 / 100, // 0.45% ao mês
-    poupanca: 0.3 / 100, // 0.3% ao mês
-  };
-
-
-  const obterTaxaRendaFixa = (tipoRendaFixa: string) => {
-  
-    return taxas[tipoRendaFixa] || 0;
-  };
-
-
   const calcularInvestimento = async () => {
+    setCarregando(true);
+    setErroApi("");
     try {
       const investimentoInicial = stringParaFloat(valores.inicial);
       const contribuicaoMensal = stringParaFloat(valores.mensal);
       const meses = valores.meses;
-      const inflacao = stringParaFloat(valores.inflacao);
+      const inflacao = stringParaFloat(valores.inflacao) / 100;
 
-      let valorFuturo = 0;
-
-  
+      let taxaMensal = 0;
       if (valores.tipoInvestimento === "acoes") {
-
-        const dadosAcao = await obterCotacaoAcao("AAPL"); 
-        const precoInicial = dadosAcao.precoInicial;
-        const precoFinal = dadosAcao.precoFinal;
-
-       
-        valorFuturo =
-          investimentoInicial * (precoFinal / precoInicial) + contribuicaoMensal * meses;
-      } else if (valores.tipoInvestimento === "renda-fixa") {
-        
-        const taxaRendaFixa = obterTaxaRendaFixa(valores.tipoRendaFixa); 
-
-        
-        valorFuturo =
-          investimentoInicial * Math.pow(1 + taxaRendaFixa, meses) +
-          contribuicaoMensal * ((Math.pow(1 + taxaRendaFixa, meses) - 1) / taxaRendaFixa);
+        const dados = await obterDadosAcao();
+        taxaMensal = dados.avgMonthlyGrowth;
+        if (!dados.success) {
+          setErroApi("Usando dados simulados (API indisponível).");
+        }
+      } else {
+        taxaMensal = taxasRetorno["renda-fixa"][
+          valores.tipoRendaFixa as keyof typeof taxasRetorno["renda-fixa"]
+        ];
       }
 
-    
-      const totalInvestido = investimentoInicial + contribuicaoMensal * meses;
-      const retorno = valorFuturo - totalInvestido;
-      const ajusteInflacao = valorFuturo * (1 - inflacao / 100);
+      let valorAtual = investimentoInicial;
+      let totalInvestido = investimentoInicial;
+      const labels: string[] = [];
+      const values: number[] = [valorAtual];
+
+      for (let i = 0; i < meses; i++) {
+        valorAtual *= 1 + taxaMensal;
+        if (i > 0) {
+          valorAtual += contribuicaoMensal * (1 + taxaMensal);
+          totalInvestido += contribuicaoMensal;
+        }
+        labels.push(`Mês ${i + 1}`);
+        values.push(parseFloat(valorAtual.toFixed(2)));
+      }
+
+      const retorno = valorAtual - totalInvestido;
+      const ajusteInflacao = valorAtual / Math.pow(1 + inflacao, meses);
 
       setResultados({
-        valorFuturo,
+        valorFuturo: valorAtual,
         totalInvestido,
         retorno,
         ajusteInflacao,
       });
+
+      setDadosGrafico({ labels, values });
     } catch (error) {
-      console.error("Erro ao calcular investimento:", error);
+      console.error("Erro no cálculo:", error);
+      setErroApi("Erro ao calcular. Tente novamente.");
+    } finally {
+      setCarregando(false);
     }
   };
 
@@ -175,59 +183,32 @@ export const Simulador = () => {
     <section id="simulador" className="simulador">
       <h2 className="titulo-simulador">Simulador de Crescimento de Investimentos</h2>
 
+      {erroApi && <div className="mensagem-erro" style={{ color: "red", textAlign: "center", margin: "1rem 0" }}>{erroApi}</div>}
+
       <div className="formulario-simulador">
         <div className="grupo-formulario">
           <label htmlFor="inicial">Investimento Inicial (R$)</label>
-          <input
-            type="text"
-            id="inicial"
-            value={valores.inicial}
-            inputMode="numeric"
-            onChange={formatarInput}
-          />
+          <input type="text" id="inicial" value={valores.inicial} inputMode="numeric" onChange={formatarInput} />
         </div>
 
         <div className="grupo-formulario">
           <label htmlFor="mensal">Contribuição Mensal (R$)</label>
-          <input
-            type="text"
-            id="mensal"
-            value={valores.mensal}
-            inputMode="numeric"
-            onChange={formatarInput}
-          />
+          <input type="text" id="mensal" value={valores.mensal} inputMode="numeric" onChange={formatarInput} />
         </div>
 
         <div className="grupo-formulario">
           <label htmlFor="meses">Período de Investimento (Meses)</label>
-          <input
-            type="number"
-            id="meses"
-            value={valores.meses}
-            min="0"
-            max="9999"
-            onChange={formatarInput}
-          />
+          <input type="number" id="meses" value={valores.meses} min="1" max="1200" onChange={formatarInput} />
         </div>
 
         <div className="grupo-formulario">
           <label htmlFor="inflacao">Taxa de Inflação Esperada (%)</label>
-          <input
-            type="text"
-            id="inflacao"
-            value={valores.inflacao}
-            inputMode="numeric"
-            onChange={formatarInput}
-          />
+          <input type="text" id="inflacao" value={valores.inflacao} inputMode="numeric" onChange={formatarInput} />
         </div>
 
         <div className="grupo-formulario">
           <label htmlFor="tipoInvestimento">Tipo de Investimento</label>
-          <select
-            id="tipoInvestimento"
-            value={valores.tipoInvestimento}
-            onChange={formatarSelect}
-          >
+          <select id="tipoInvestimento" value={valores.tipoInvestimento} onChange={formatarSelect}>
             <option value="acoes">Ações</option>
             <option value="renda-fixa">Renda Fixa</option>
           </select>
@@ -236,11 +217,7 @@ export const Simulador = () => {
         {valores.tipoInvestimento === "renda-fixa" && (
           <div className="grupo-formulario">
             <label htmlFor="tipoRendaFixa">Tipo de Renda Fixa</label>
-            <select
-              id="tipoRendaFixa"
-              value={valores.tipoRendaFixa}
-              onChange={formatarSelect}
-            >
+            <select id="tipoRendaFixa" value={valores.tipoRendaFixa} onChange={formatarSelect}>
               <option value="cdb">CDB</option>
               <option value="tesouro-direto">Tesouro Direto</option>
               <option value="lci">LCI</option>
@@ -258,47 +235,43 @@ export const Simulador = () => {
 
       <Scroll
         href="#"
-        className="botao botao-primario"
+        className={`botao botao-primario ${carregando ? "botao-desabilitado" : ""}`}
         style={{ display: "block", width: "200px", margin: "0 auto 2rem" }}
         onClick={calcularInvestimento}
       >
-        Calcular Resultados
+        {carregando ? "Calculando..." : "Calcular Resultados"}
       </Scroll>
 
       <div className="resultados">
         <div className="cartao-resultado">
-          <div className="valor-resultado">
-            {formatarMoeda(resultados.valorFuturo)}
-          </div>
+          <div className="valor-resultado">{formatarMoeda(resultados.valorFuturo)}</div>
           <div className="rotulo-resultado">Valor Futuro</div>
         </div>
 
         <div className="cartao-resultado">
-          <div className="valor-resultado">
-            {formatarMoeda(resultados.totalInvestido)}
-          </div>
+          <div className="valor-resultado">{formatarMoeda(resultados.totalInvestido)}</div>
           <div className="rotulo-resultado">Total Investido</div>
         </div>
 
         <div className="cartao-resultado">
-          <div className="valor-resultado">
-            {formatarMoeda(resultados.retorno)}
-          </div>
+          <div className="valor-resultado">{formatarMoeda(resultados.retorno)}</div>
           <div className="rotulo-resultado">Retornos do Investimento</div>
         </div>
 
         <div className="cartao-resultado">
-          <div className="valor-resultado">
-            {formatarMoeda(resultados.ajusteInflacao)}
-          </div>
+          <div className="valor-resultado">{formatarMoeda(resultados.ajusteInflacao)}</div>
           <div className="rotulo-resultado">Valor Ajustado pela Inflação</div>
         </div>
       </div>
 
       <div className="grafico">
-        <div className="placeholder-grafico">
-          [Gráfico de Crescimento do Investimento]
-        </div>
+        {dadosGrafico.values.length > 0 ? (
+          <Grafico dados={dadosGrafico} />
+        ) : (
+          <div className="placeholder-grafico">
+            [Gráfico de Crescimento do Investimento]
+          </div>
+        )}
       </div>
     </section>
   );
