@@ -225,6 +225,92 @@ select {
   animation: highlight 2s;
 }
 
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 2rem;
+}
+
+th,
+td {
+  padding: 1rem;
+  text-align: center;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+  background-color: var(--cor-primaria);
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+td {
+  font-size: 1rem;
+  color: var(--cor-escura);
+  background-color: white;
+}
+
+tr:hover {
+  background-color: #f1f5f9;
+  cursor: pointer;
+}
+
+tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+td, th {
+  border: 1px solid #e2e8f0;
+}
+
+.tabela-acoes {
+  border-radius: 0.8rem;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
+  background-color: var(--cor-clara); 
+}
+
+.tabela-acoes th,
+.tabela-acoes td {
+  padding: 1rem;
+}
+
+.tabela-acoes {
+  margin-top: 2rem;
+  width: 100%;
+  background-color: var(--cor-clara);
+  border-radius: 0.8rem;
+}
+
+.tabela-acoes thead {
+  background-color: var(--cor-primaria);
+  color: white;
+}
+
+.tabela-acoes tr:hover {
+  background-color: #f1f5f9; 
+}
+
+.variacao-positiva {
+  background-color: #22c55e; 
+  color: white;
+}
+
+.variacao-negativa {
+  background-color: #ef4444;
+  color: white;
+}
+
+.variacao-neutra {
+  background-color: #e7f3ff;
+}
+
 @keyframes highlight {
   0% {
     background-color: rgba(66, 153, 225, 0.3);

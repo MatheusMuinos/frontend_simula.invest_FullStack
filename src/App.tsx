@@ -1,6 +1,7 @@
 import { Scroll } from "./components/Scroll";
 import { Simulador } from "./components/Simulador";
 import Grafico from "./components/Grafico";
+import TabelaAcoes from "./components/TabelaAcoes";
 import "./index.css";
 
 function App() {
@@ -43,9 +44,14 @@ function App() {
             <Grafico dados={exemploDados} />
           </div>
         </section>
+        {/* adicionando simuladorr */}
         <Simulador />
+        
+        {/* colocando abaixo do simulador */}
+        <TabelaAcoes />
       </div>
     </>
   );
 }
+
 export default App;

@@ -3,6 +3,7 @@ import axios from "axios";
 import { Scroll } from "./Scroll";
 import Grafico from "./Grafico";
 import PrecoAcao from "./PrecoAcao";
+import TabelaAcoes from "./TabelaAcoes";
 
 type Valores = {
   inicial: string;
@@ -89,7 +90,7 @@ export const Simulador = () => {
 
   const stringParaFloat = (valor: string) => parseFloat(valor.replace(/\./g, "").replace(",", ".")) || 0;
 
-  const formatarMoeda = (valor: number) => 
+  const formatarMoeda = (valor: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
 
   const obterDadosAcao = async (): Promise<DadosAcao> => {
@@ -106,7 +107,7 @@ export const Simulador = () => {
 
       if (response.data.c?.length > 1) {
         const closes = response.data.c;
-        const totalGrowth = closes.slice(1).reduce((sum: number, close: number, i: number) => 
+        const totalGrowth = closes.slice(1).reduce((sum: number, close: number, i: number) =>
           sum + (close - closes[i]) / closes[i], 0);
         return { avgMonthlyGrowth: totalGrowth / (closes.length - 1), success: true };
       }
@@ -121,14 +122,14 @@ export const Simulador = () => {
   const calcularInvestimento = async () => {
     setCarregando(true);
     setErroApi("");
-    
+
     try {
       const { inicial, mensal, meses, inflacao, tipoInvestimento, tipoRendaFixa } = valores;
       const investimentoInicial = stringParaFloat(inicial);
       const contribuicaoMensal = stringParaFloat(mensal);
       const inflacaoDecimal = stringParaFloat(inflacao) / 100;
 
-      const taxaMensal = tipoInvestimento === "acoes" 
+      const taxaMensal = tipoInvestimento === "acoes"
         ? (await obterDadosAcao()).avgMonthlyGrowth
         : taxasRetorno["renda-fixa"][tipoRendaFixa as keyof typeof taxasRetorno["renda-fixa"]];
 
@@ -248,6 +249,9 @@ export const Simulador = () => {
           </div>
         )}
       </div>
+
+      {/* tabela com os dados */}
+      <TabelaAcoes />
     </section>
   );
 };
