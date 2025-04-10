@@ -219,9 +219,9 @@ export const Simulador = () => {
       </div>
 
       <Scroll
-        href="#"
+        href="#simulador"
         className={`botao botao-primario ${carregando ? "botao-desabilitado" : ""}`}
-        style={{ display: "block", width: "200px", margin: "0 auto 2rem" }}
+        style={{ display: "block", width: "200px", margin: "0 auto 2rem", textAlign: "center" }}
         onClick={calcularInvestimento}
       >
         {carregando ? "Calculando..." : "Calcular Resultados"}

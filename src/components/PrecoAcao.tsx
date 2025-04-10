@@ -81,7 +81,10 @@ const PrecoAcao: React.FC = () => {
         >
           <div>
             <strong>{dadosAcao.simbolo}</strong>: R$
-            {dadosAcao.precoAtual.toFixed(2)}
+            {dadosAcao.precoAtual.toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </div>
           <div style={{ fontSize: "0.8em", color: "#666" }}>
             Última atualização:{" "}
