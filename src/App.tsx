@@ -1,7 +1,6 @@
 import { Scroll } from "./components/Scroll";
 import { Simulador } from "./components/Simulador";
 import Grafico from "./components/Grafico";
-import TabelaAcoes from "./components/TabelaAcoes";
 import "./index.css";
 
 function App() {
@@ -47,8 +46,6 @@ function App() {
         {/* adicionando simuladorr */}
         <Simulador />
         
-        {/* colocando abaixo do simulador */}
-        <TabelaAcoes />
       </div>
     </>
   );
