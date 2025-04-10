@@ -7,18 +7,19 @@ type DadosAcao = {
   ultimaAtualizacao: number;
 };
 
-const PrecoAcao: React.FC = () => {
+const CHAVE_API = "cvrrec9r01qnpem98r4gcvrrec9r01qnpem98r50";
+
+const PrecoAcao: React.FC<{ onSimboloChange: (simbolo: string) => void }> = ({
+  onSimboloChange,
+}) => {
   const [simbolo, setSimbolo] = useState("AAPL");
   const [dadosAcao, setDadosAcao] = useState<DadosAcao | null>(null);
   const [carregando, setCarregando] = useState(false);
-
-  const CHAVE_API = "cvrrec9r01qnpem98r4gcvrrec9r01qnpem98r50";
 
   const buscarPrecoAcao = async () => {
     if (simbolo.length < 1 || simbolo.length > 5) return;
 
     setCarregando(true);
-
     try {
       const resposta = await axios.get(
         `https://finnhub.io/api/v1/quote?symbol=${simbolo}&token=${CHAVE_API}`
@@ -30,6 +31,7 @@ const PrecoAcao: React.FC = () => {
           precoAtual: resposta.data.c,
           ultimaAtualizacao: resposta.data.t * 1000,
         });
+        onSimboloChange(simbolo);
       } else {
         setDadosAcao(null);
       }
@@ -80,7 +82,7 @@ const PrecoAcao: React.FC = () => {
           }}
         >
           <div>
-            <strong>{dadosAcao.simbolo}</strong>: R$
+            <strong>{dadosAcao.simbolo}</strong>: $
             {dadosAcao.precoAtual.toLocaleString("pt-BR", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
