@@ -22,10 +22,12 @@ const Grafico = ({
   const valorMinimo = Math.min(...dados.values, 0);
   const faixaValores = valorMaximo - valorMinimo;
 
+  const labelInterval = Math.max(1, Math.floor(dados.values.length / 10));
+
   const pontos = dados.values.map((valor, indice) => {
-    const x = (indice / (dados.values.length - 1)) * (largura - 40) + 20;
+    const x = (indice / (dados.values.length - 1)) * (largura - 80) + 40;
     const y =
-      altura - 40 - ((valor - valorMinimo) / faixaValores) * (altura - 80);
+      altura - 60 - ((valor - valorMinimo) / faixaValores) * (altura - 100);
     return { x, y, valor };
   });
 
@@ -37,33 +39,33 @@ const Grafico = ({
     <div className={styles.container} style={{ width: `${largura}px` }}>
       <svg width={largura} height={altura} className={styles.grafico}>
         <line
-          x1="20"
-          y1={altura - 40}
-          x2={largura - 20}
-          y2={altura - 40}
+          x1="40"
+          y1={altura - 60}
+          x2={largura - 40}
+          y2={altura - 60}
           className={styles.eixo}
         />
 
         <line
-          x1="20"
-          y1="20"
-          x2="20"
-          y2={altura - 40}
+          x1="40"
+          y1="40"
+          x2="40"
+          y2={altura - 60}
           className={styles.eixo}
         />
 
         {[0.25, 0.5, 0.75, 1].map((proporcao, i) => {
-          const y = 20 + (altura - 60) * (1 - proporcao);
+          const y = 40 + (altura - 100) * (1 - proporcao);
           return (
             <g key={i}>
               <line
-                x1="20"
+                x1="40"
                 y1={y}
-                x2={largura - 20}
+                x2={largura - 40}
                 y2={y}
                 className={styles.linhaGrade}
               />
-              <text x="10" y={y + 4} className={styles.rotuloGrade}>
+              <text x="30" y={y + 4} className={styles.rotuloGrade}>
                 R$ {Math.round(valorMinimo + faixaValores * proporcao)},00
               </text>
             </g>
@@ -91,9 +93,18 @@ const Grafico = ({
           ))}
 
         {dados.labels.map((rotulo, i) => {
-          const x = (i / (dados.labels.length - 1)) * (largura - 40) + 20;
+          if (i % labelInterval !== 0 && i !== dados.labels.length - 1)
+            return null;
+
+          const x = (i / (dados.labels.length - 1)) * (largura - 80) + 40;
           return (
-            <text key={i} x={x} y={altura - 25} className={styles.rotuloEixoX}>
+            <text
+              key={i}
+              x={x}
+              y={altura - 40}
+              className={styles.rotuloEixoX}
+              style={{ fontSize: "0.8rem" }}
+            >
               {rotulo}
             </text>
           );
