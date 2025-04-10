@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { Scroll } from "./Scroll";
 import Grafico from "./Grafico";
+import PrecoAcao from "./PrecoAcao";
 
 type Valores = {
   inicial: string;
@@ -24,6 +25,22 @@ type DadosAcao = {
   success: boolean;
 };
 
+const taxasRetorno = {
+  acoes: 0.01,
+  "renda-fixa": {
+    cdb: 0.005,
+    "tesouro-direto": 0.0035,
+    lci: 0.004,
+    lca: 0.004,
+    lc: 0.0045,
+    debentures: 0.006,
+    cri: 0.005,
+    cra: 0.005,
+    "fundos-renda-fixa": 0.0045,
+    poupanca: 0.003,
+  },
+};
+
 export const Simulador = () => {
   const [valores, setValores] = useState<Valores>({
     inicial: "1000",
@@ -41,9 +58,9 @@ export const Simulador = () => {
     ajusteInflacao: 0,
   });
 
-  const [dadosGrafico, setDadosGrafico] = useState<{ labels: string[]; values: number[] }>({
-    labels: [],
-    values: [],
+  const [dadosGrafico, setDadosGrafico] = useState({
+    labels: [] as string[],
+    values: [] as number[],
   });
 
   const [carregando, setCarregando] = useState(false);
@@ -51,13 +68,14 @@ export const Simulador = () => {
 
   const formatarInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    if (id === "inicial" || id === "mensal" || id === "inflacao") {
+    if (["inicial", "mensal", "inflacao"].includes(id)) {
       const cleanedValue = value.replace(/[^\d,]/g, "");
       const [inteiro, decimal] = cleanedValue.split(",");
       const formattedInt = inteiro
         ? parseInt(inteiro.replace(/\D/g, ""), 10).toLocaleString("pt-BR")
         : "";
-      const formattedValue = decimal !== undefined ? `${formattedInt},${decimal}` : formattedInt;
+      const formattedValue =
+        decimal !== undefined ? `${formattedInt},${decimal}` : formattedInt;
       setValores((prev) => ({ ...prev, [id]: formattedValue }));
     } else {
       setValores((prev) => ({ ...prev, [id]: value }));
@@ -69,56 +87,33 @@ export const Simulador = () => {
     setValores((prev) => ({ ...prev, [id]: value }));
   };
 
-  const stringParaFloat = (valor: string) => {
-    return parseFloat(valor.replace(/\./g, "").replace(",", ".")) || 0;
-  };
+  const stringParaFloat = (valor: string) => parseFloat(valor.replace(/\./g, "").replace(",", ".")) || 0;
 
-  const formatarMoeda = (valor: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(valor);
-  };
-
-  const taxasRetorno = {
-    acoes: 0.01,
-    "renda-fixa": {
-      cdb: 0.005,
-      "tesouro-direto": 0.0035,
-      lci: 0.004,
-      lca: 0.004,
-      lc: 0.0045,
-      debentures: 0.006,
-      cri: 0.005,
-      cra: 0.005,
-      "fundos-renda-fixa": 0.0045,
-      poupanca: 0.003,
-    },
-  };
+  const formatarMoeda = (valor: number) => 
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
 
   const obterDadosAcao = async (): Promise<DadosAcao> => {
-    const API_KEY = "O96I16GWZFH9OFYS";
     const symbol = "AAPL";
+    const to = Math.floor(Date.now() / 1000);
+    const from = to - 60 * 60 * 24 * 365 * 2;
+
+    const API_KEY = "cvrrec9r01qnpem98r4gcvrrec9r01qnpem98r50";
 
     try {
-      let response = await axios.get(
-        `https://www.alphavantage.co/query?function=TIME_SERIES_MONTHLY&symbol=${symbol}&apikey=${API_KEY}`
+      const response = await axios.get(
+        `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=M&from=${from}&to=${to}&token=${API_KEY}`
       );
 
-      if (response.data["Time Series (Monthly)"]) {
-        const monthlyData = response.data["Time Series (Monthly)"];
-        const closes = Object.values(monthlyData).map((entry: any) => parseFloat(entry["4. close"]));
-        let totalGrowth = 0;
-        for (let i = 1; i < closes.length; i++) {
-          totalGrowth += (closes[i] - closes[i - 1]) / closes[i - 1];
-        }
-        const avgMonthlyGrowth = totalGrowth / (closes.length - 1);
-        return { avgMonthlyGrowth, success: true };
+      if (response.data.c?.length > 1) {
+        const closes = response.data.c;
+        const totalGrowth = closes.slice(1).reduce((sum: number, close: number, i: number) => 
+          sum + (close - closes[i]) / closes[i], 0);
+        return { avgMonthlyGrowth: totalGrowth / (closes.length - 1), success: true };
       }
 
-      throw new Error("Sem dados mensais disponíveis");
+      throw new Error("No monthly data available");
     } catch (error) {
-      console.error("Erro na API:", error);
+      console.error("API error:", error);
       return { avgMonthlyGrowth: taxasRetorno.acoes, success: false };
     }
   };
@@ -126,24 +121,16 @@ export const Simulador = () => {
   const calcularInvestimento = async () => {
     setCarregando(true);
     setErroApi("");
+    
     try {
-      const investimentoInicial = stringParaFloat(valores.inicial);
-      const contribuicaoMensal = stringParaFloat(valores.mensal);
-      const meses = valores.meses;
-      const inflacao = stringParaFloat(valores.inflacao) / 100;
+      const { inicial, mensal, meses, inflacao, tipoInvestimento, tipoRendaFixa } = valores;
+      const investimentoInicial = stringParaFloat(inicial);
+      const contribuicaoMensal = stringParaFloat(mensal);
+      const inflacaoDecimal = stringParaFloat(inflacao) / 100;
 
-      let taxaMensal = 0;
-      if (valores.tipoInvestimento === "acoes") {
-        const dados = await obterDadosAcao();
-        taxaMensal = dados.avgMonthlyGrowth;
-        if (!dados.success) {
-          setErroApi("Usando dados simulados (API indisponível).");
-        }
-      } else {
-        taxaMensal = taxasRetorno["renda-fixa"][
-          valores.tipoRendaFixa as keyof typeof taxasRetorno["renda-fixa"]
-        ];
-      }
+      const taxaMensal = tipoInvestimento === "acoes" 
+        ? (await obterDadosAcao()).avgMonthlyGrowth
+        : taxasRetorno["renda-fixa"][tipoRendaFixa as keyof typeof taxasRetorno["renda-fixa"]];
 
       let valorAtual = investimentoInicial;
       let totalInvestido = investimentoInicial;
@@ -160,14 +147,11 @@ export const Simulador = () => {
         values.push(parseFloat(valorAtual.toFixed(2)));
       }
 
-      const retorno = valorAtual - totalInvestido;
-      const ajusteInflacao = valorAtual / Math.pow(1 + inflacao, meses);
-
       setResultados({
         valorFuturo: valorAtual,
         totalInvestido,
-        retorno,
-        ajusteInflacao,
+        retorno: valorAtual - totalInvestido,
+        ajusteInflacao: valorAtual / Math.pow(1 + inflacaoDecimal, meses),
       });
 
       setDadosGrafico({ labels, values });
@@ -214,20 +198,20 @@ export const Simulador = () => {
           </select>
         </div>
 
+        {valores.tipoInvestimento === "acoes" && (
+          <div className="grupo-formulario">
+            <label>Dados em Tempo Real (Finnhub)</label>
+            <PrecoAcao />
+          </div>
+        )}
+
         {valores.tipoInvestimento === "renda-fixa" && (
           <div className="grupo-formulario">
             <label htmlFor="tipoRendaFixa">Tipo de Renda Fixa</label>
             <select id="tipoRendaFixa" value={valores.tipoRendaFixa} onChange={formatarSelect}>
-              <option value="cdb">CDB</option>
-              <option value="tesouro-direto">Tesouro Direto</option>
-              <option value="lci">LCI</option>
-              <option value="lca">LCA</option>
-              <option value="lc">LC</option>
-              <option value="debentures">Debêntures</option>
-              <option value="cri">CRI</option>
-              <option value="cra">CRA</option>
-              <option value="fundos-renda-fixa">Fundos Renda Fixa</option>
-              <option value="poupanca">Poupança</option>
+              {Object.entries(taxasRetorno["renda-fixa"]).map(([key]) => (
+                <option key={key} value={key}>{key.toUpperCase()}</option>
+              ))}
             </select>
           </div>
         )}
@@ -243,25 +227,16 @@ export const Simulador = () => {
       </Scroll>
 
       <div className="resultados">
-        <div className="cartao-resultado">
-          <div className="valor-resultado">{formatarMoeda(resultados.valorFuturo)}</div>
-          <div className="rotulo-resultado">Valor Futuro</div>
-        </div>
-
-        <div className="cartao-resultado">
-          <div className="valor-resultado">{formatarMoeda(resultados.totalInvestido)}</div>
-          <div className="rotulo-resultado">Total Investido</div>
-        </div>
-
-        <div className="cartao-resultado">
-          <div className="valor-resultado">{formatarMoeda(resultados.retorno)}</div>
-          <div className="rotulo-resultado">Retornos do Investimento</div>
-        </div>
-
-        <div className="cartao-resultado">
-          <div className="valor-resultado">{formatarMoeda(resultados.ajusteInflacao)}</div>
-          <div className="rotulo-resultado">Valor Ajustado pela Inflação</div>
-        </div>
+        {Object.entries(resultados).map(([key, value]) => (
+          <div key={key} className="cartao-resultado">
+            <div className="valor-resultado">{formatarMoeda(value)}</div>
+            <div className="rotulo-resultado">
+              {key === "valorFuturo" ? "Valor Futuro" :
+               key === "totalInvestido" ? "Total Investido" :
+               key === "retorno" ? "Retornos do Investimento" : "Valor Ajustado pela Inflação"}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="grafico">
