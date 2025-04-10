@@ -252,3 +252,5 @@ export const Simulador = () => {
     </section>
   );
 };
+
+// ESSE É O CORRETO
