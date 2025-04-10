@@ -18,6 +18,13 @@ const TabelaAcoes = () => {
     "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA", "BRK.A", "JNJ", "JPM"
   ];
 
+  const formatarNumero = (valor: number, casasDecimais: number = 2) => {
+    return valor.toLocaleString('pt-BR', {
+      minimumFractionDigits: casasDecimais,
+      maximumFractionDigits: casasDecimais
+    });
+  };
+
   const buscarDadosAcoes = async () => {
     try {
       const dados = await Promise.all(
@@ -70,7 +77,7 @@ const TabelaAcoes = () => {
 
   return (
     <div style={{ marginTop: "20px" }} className="tabela-acoes">
-      <h3>Tabela de Ações</h3>
+      <h3 className="titulo-tabela">Tabela de Ações</h3>
       <table>
         <thead>
           <tr>
@@ -85,12 +92,12 @@ const TabelaAcoes = () => {
           {dadosAcoes.map((acao) => (
             <tr key={acao.ticker}>
               <td>{acao.ticker}</td>
-              <td>R$ {acao.precoAbertura.toFixed(2)}</td>
-              <td>R$ {acao.precoFechamento.toFixed(2)}</td>
-               <td className={determinarClasseVariacao(acao.variacaoDia)}>
-                {acao.variacaoDia.toFixed(2)}%
+              <td>$ {formatarNumero(acao.precoAbertura)}</td>
+              <td>$ {formatarNumero(acao.precoFechamento)}</td>
+              <td className={determinarClasseVariacao(acao.variacaoDia)}>
+                {formatarNumero(acao.variacaoDia)}%
               </td>
-              <td>R$ {acao.precoMedio.toFixed(2)}</td> 
+              <td>$ {formatarNumero(acao.precoMedio)}</td>
             </tr>
           ))}
         </tbody>
