@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 type DadosAcaoTabela = {
@@ -14,11 +14,9 @@ const TabelaAcoes = () => {
   const [carregando, setCarregando] = useState(true);
   const CHAVE_API = "cvrrec9r01qnpem98r4gcvrrec9r01qnpem98r50";
 
-
   const ativos = [
     "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA", "BRK.A", "JNJ", "JPM"
   ];
-
 
   const buscarDadosAcoes = async () => {
     try {
@@ -56,7 +54,6 @@ const TabelaAcoes = () => {
     buscarDadosAcoes();
   }, []);
 
- 
   const determinarClasseVariacao = (variacao: number) => {
     if (variacao > 0) {
       return "variacao-positiva";
@@ -90,8 +87,7 @@ const TabelaAcoes = () => {
               <td>{acao.ticker}</td>
               <td>R$ {acao.precoAbertura.toFixed(2)}</td>
               <td>R$ {acao.precoFechamento.toFixed(2)}</td>
-              
-              <td className={determinarClasseVariacao(acao.variacaoDia)}>
+               <td className={determinarClasseVariacao(acao.variacaoDia)}>
                 {acao.variacaoDia.toFixed(2)}%
               </td>
               <td>R$ {acao.precoMedio.toFixed(2)}</td> 
