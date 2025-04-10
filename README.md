@@ -1,6 +1,6 @@
 # Simulador de Investimentos
 
-O projeto consiste em uma página web interativa que permite aos usuários simular diferentes estratégias de investimento utilizando dados financeiros atualizados fornecidos pela [API Dados de Mercado](https://www.dadosdemercado.com.br/api/docs).
+O projeto consiste em uma página web interativa que permite aos usuários simular diferentes estratégias de investimento utilizando dados financeiros atualizados fornecidos pela [API Finnhub](https://finnhub.io/docs/api), com adição de uma API complementar [Twelve Data API](https://twelvedata.com/).
 
 A plataforma é voltada tanto para iniciantes quanto para investidores mais avançados, oferecendo insights sobre como distribuir seus investimentos entre ativos de renda fixa e **renda variável.
 
@@ -45,6 +45,7 @@ Com base nas escolhas, o sistema classifica o perfil do usuário como:
 
 ## Links Importantes
 
-- [Documentação da API Dados de Mercado](https://www.dadosdemercado.com.br/api/docs)
+- [Documentação da API Finnhub](https://finnhub.io/docs/api)
+- [Documentação da API Twelve Data](https://twelvedata.com/docs)
 - [Repositório no GitHub](https://github.com/MatheusMuinos/simula.invest_Full_stack.git)
 - [Página no Vercel (Deploy)](https://simula-invest-full-stack-jbpj.vercel.app/)
