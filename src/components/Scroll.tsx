@@ -18,7 +18,7 @@ export const Scroll = ({
   const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (href.startsWith("#")) {
       e.preventDefault();
-      const elementoAlvo = document.querySelector(href);
+      const elementoAlvo = document.getElementById(href.substring(1));
       if (elementoAlvo) {
         elementoAlvo.classList.add("highlight");
         setTimeout(() => {
