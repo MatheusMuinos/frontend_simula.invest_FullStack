@@ -77,7 +77,7 @@ const TabelaAcoes = () => {
 
   return (
     <div style={{ marginTop: "20px" }} className="tabela-acoes">
-      <h3>Tabela de Ações</h3>
+      <h3 className="titulo-tabela">Tabela de Ações</h3>
       <table>
         <thead>
           <tr>
