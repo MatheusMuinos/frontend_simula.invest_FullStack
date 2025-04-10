@@ -3,7 +3,6 @@ import axios from "axios";
 import { Scroll } from "./Scroll";
 import Grafico from "./Grafico";
 import PrecoAcao from "./PrecoAcao";
-import TabelaAcoes from "./TabelaAcoes";
 
 type Valores = {
   inicial: string;
@@ -250,8 +249,6 @@ export const Simulador = () => {
         )}
       </div>
 
-      {/* tabela com os dados */}
-      <TabelaAcoes />
     </section>
   );
 };
