@@ -15,7 +15,7 @@ const TabelaAcoes = () => {
   const CHAVE_API = "cvrrec9r01qnpem98r4gcvrrec9r01qnpem98r50";
 
   const ativos = [
-    "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA", "BRK.A", "JNJ", "JPM"
+    "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA", "JNJ", "JPM", "SBUX", "INTC", "EBAY", "CSCO", "NFLX", "AMD", "QCOM"
   ];
 
   const formatarNumero = (valor: number, casasDecimais: number = 2) => {
