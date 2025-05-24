@@ -1,8 +1,10 @@
 import { Scroll } from "./components/Scroll";
 import { Simulador } from "./components/Simulador";
+import { useAuth } from './auth/AuthContext';
 import Grafico from "./components/Grafico";
 import TabelaAcoes from "./components/TabelaAcoes";
 import "./index.css";
+import "./App.css";
 
 function App() {
   const exemploDados = {
@@ -10,20 +12,24 @@ function App() {
     values: [1200, 1900, 1500, 2000, 1800, 2400],
   };
 
+  const { user, logout } = useAuth();
+
   return (
     <>
       <header>
         <nav className="conteiner">
           <div className="logo">
-            <a href="/">
-              Simula<span>Invest</span>
-            </a>
+            <a href="/">Simula<span>Invest</span></a>
           </div>
-          <div className="botoes-acesso">
-            <Scroll href="#simulador" className="botao botao-primario">
-              Começar
-            </Scroll>
-          </div>
+          
+          {user && (
+            <div className="user-actions">
+              <span>Olá, {user.name}</span>
+              <button onClick={logout} className="botao-secundario">
+                Sair
+              </button>
+            </div>
+          )}
         </nav>
       </header>
       <div className="conteiner">

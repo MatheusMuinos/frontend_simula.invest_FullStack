@@ -36,8 +36,12 @@ const Grafico = ({
     .join(" ");
 
   return (
-    <div className={styles.container} style={{ width: `${largura}px` }}>
-      <svg width={largura} height={altura} className={styles.grafico}>
+    <div className={styles.container}>
+      <svg
+        viewBox={`0 0 ${largura} ${altura}`}
+        preserveAspectRatio="xMidYMid meet"
+        className={styles.grafico}
+      >
         <line
           x1="40"
           y1={altura - 60}
