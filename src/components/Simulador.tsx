@@ -1,269 +1,274 @@
-import { useState } from "react";
-import axios from "axios";
+import React, { useState } from "react";
+import axios from 'axios';
 import { Scroll } from "./Scroll";
 import Grafico from "./Grafico";
 import PrecoAcao from "./PrecoAcao";
+import apiClient from '../services/api';
+import { useAuth } from '../auth/AuthContext';
+import { Loader } from "./Loader";
 
-type Valores = {
+interface ValoresSimulador {
   inicial: string;
   mensal: string;
   meses: number;
   inflacao: string;
-  tipoInvestimento: string;
+  tipoInvestimento: 'acoes' | 'renda-fixa';
   tipoRendaFixa: string;
-};
+}
 
-type Resultados = {
-  valorFuturo: number;
+interface ResultadosSimulacao {
+  valorFuturoBruto: number;
   totalInvestido: number;
-  retorno: number;
-  ajusteInflacao: number;
-};
+  retornoBruto: number;
+  valorAjustadoPelaInflacao: number;
+}
 
-type DadosAcao = {
+interface DadosCrescimentoAcao {
   avgMonthlyGrowth: number;
   success: boolean;
+  error?: string;
+}
+
+const taxasRetornoRendaFixa: Record<string, number> = {
+  cdb: 0.008,
+  "tesouro-direto": 0.007,
+  lci: 0.0075,
+  lca: 0.0075,
+  poupanca: 0.005,
 };
 
-const taxasRetorno = {
-  acoes: 0.01,
-  "renda-fixa": {
-    cdb: 0.005,
-    "tesouro-direto": 0.0035,
-    lci: 0.004,
-    lca: 0.004,
-    lc: 0.0045,
-    debentures: 0.006,
-    cri: 0.005,
-    cra: 0.005,
-    "fundos-renda-fixa": 0.0045,
-    poupanca: 0.003,
-  },
-};
+const FALLBACK_ACAO_MONTHLY_GROWTH = 0.01;
 
-export const Simulador = () => {
-  const [valores, setValores] = useState<Valores>({
-    inicial: "1000",
-    mensal: "100",
+export const Simulador: React.FC = () => {
+  const { user, isAuthenticated } = useAuth();
+
+  const [valores, setValores] = useState<ValoresSimulador>({
+    inicial: "1000,00",
+    mensal: "100,00",
     meses: 12,
-    inflacao: "5",
+    inflacao: "5,0",
     tipoInvestimento: "acoes",
     tipoRendaFixa: "cdb",
   });
 
-  const [simboloAcao, setSimboloAcao] = useState("AAPL");
+  const [simboloAcaoSelecionado, setSimboloAcaoSelecionado] = useState("AAPL");
+  const [precoAtualAcaoParaLog, setPrecoAtualAcaoParaLog] = useState<number | null>(null);
 
-  const [resultados, setResultados] = useState<Resultados>({
-    valorFuturo: 0,
-    totalInvestido: 0,
-    retorno: 0,
-    ajusteInflacao: 0,
+  const [resultados, setResultados] = useState<ResultadosSimulacao | null>(null);
+  const [dadosGrafico, setDadosGrafico] = useState<{ labels: string[]; values: number[] }>({
+    labels: [],
+    values: [],
   });
 
-  const [dadosGrafico, setDadosGrafico] = useState({
-    labels: [] as string[],
-    values: [] as number[],
-  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const [carregando, setCarregando] = useState(false);
-  const [erroApi, setErroApi] = useState("");
-
-  const formatarInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target;
-    if (["inicial", "mensal", "inflacao"].includes(id)) {
-      const cleanedValue = value.replace(/[^\d,]/g, "");
-      const [inteiro, decimal] = cleanedValue.split(",");
-      const formattedInt = inteiro
-        ? parseInt(inteiro.replace(/\D/g, ""), 10).toLocaleString("pt-BR")
-        : "";
-      const formattedValue =
-        decimal !== undefined ? `${formattedInt},${decimal}` : formattedInt;
-      setValores((prev) => ({ ...prev, [id]: formattedValue }));
-    } else {
-      setValores((prev) => ({ ...prev, [id]: value }));
-    }
-  };
-
-  const formatarSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
     setValores((prev) => ({ ...prev, [id]: value }));
+    setResultados(null);
+    setDadosGrafico({ labels: [], values: [] });
   };
-
-  const stringParaFloat = (valor: string) =>
-    parseFloat(valor.replace(/\./g, "").replace(",", ".")) || 0;
-
-  const formatarMoeda = (valor: number) => {
-    const formatted = new Intl.NumberFormat("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(valor);
-    return `$${formatted}`;
-  };
-
-  const obterDadosAcao = async (symbol: string): Promise<DadosAcao> => {
-    const API_KEY = "aedecfc4b69c40b6a6f5a65c8c523774";
-    const interval = "1month";
-    const outputsize = 24;
   
-    // Necessário usar api Twelve Data
+  const stringParaFloat = (valor: string): number => {
+    return parseFloat(valor.replace(/\./g, "").replace(",", ".")) || 0;
+  };
+
+  const formatarMoeda = (valor: number): string => {
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimentoAcao> => {
+  const API_KEY_TWELVE_DATA = import.meta.env.VITE_TWELVEDATA_API_KEY;
+  const interval = "1month";
+  const outputsize = 24;
+
+  if (!API_KEY_TWELVE_DATA) {
+    console.error("TwelveData API key (VITE_TWELVEDATA_API_KEY) is missing from .env file.");
+    return { 
+      avgMonthlyGrowth: FALLBACK_ACAO_MONTHLY_GROWTH, 
+      success: false, 
+      error: "API key configuration error." 
+    };
+  }
 
     try {
       const response = await axios.get(
-        `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&apikey=${API_KEY}`
+        `https://api.twelvedata.com/time_series?symbol=${symbol.trim().toUpperCase()}&interval=${interval}&outputsize=${outputsize}&apikey=${API_KEY_TWELVE_DATA}`
       );
-  
+
       const data = response.data;
-  
+
       if (data?.values?.length > 1) {
         const closes: number[] = data.values
           .map((entry: { close: string }) => parseFloat(entry.close))
-          .reverse(); // oldest to newest
-  
-        const totalGrowth = closes
-          .slice(1)
-          .reduce((sum: number, close: number, i: number) => {
-            return sum + (close - closes[i]) / closes[i];
-          }, 0);
-  
-        return {
-          avgMonthlyGrowth: totalGrowth / (closes.length - 1),
-          success: true,
+          .reverse(); 
+
+        let monthlyGrowths: number[] = [];
+        for (let i = 0; i < closes.length - 1; i++) {
+          if (closes[i] !== 0) {
+            monthlyGrowths.push((closes[i + 1] - closes[i]) / closes[i]);
+          }
+        }
+
+        if (monthlyGrowths.length === 0) {
+          console.warn(`Not enough valid data points for ${symbol} to calculate growth. Using fallback.`);
+          return { 
+            avgMonthlyGrowth: FALLBACK_ACAO_MONTHLY_GROWTH, 
+            success: false, 
+            error: `Not enough valid data points for ${symbol} to calculate growth.`
+          };
+        }
+
+        const averageMonthlyGrowth = monthlyGrowths.reduce((sum, growth) => sum + growth, 0) / monthlyGrowths.length;
+        
+        if (isNaN(averageMonthlyGrowth) || !isFinite(averageMonthlyGrowth)) {
+          console.warn(`Calculated average monthly growth for ${symbol} is NaN or infinite. Using fallback. Monthly growths:`, monthlyGrowths);
+          return { 
+              avgMonthlyGrowth: FALLBACK_ACAO_MONTHLY_GROWTH, 
+              success: false, 
+              error: `Invalid growth calculation for ${symbol}.`
+          };
+        }
+
+        return { 
+          avgMonthlyGrowth: averageMonthlyGrowth, 
+          success: true 
         };
       }
-  
-      throw new Error("No monthly data available");
-    } catch (error) {
-      console.error("API error:", error);
-      return { avgMonthlyGrowth: taxasRetorno.acoes, success: false };
+      console.warn(`No sufficient time series data found for ${symbol} from TwelveData. Using fallback. Response status: ${data?.status || 'N/A'}, Code: ${data?.code || 'N/A'}`);
+      return { 
+        avgMonthlyGrowth: FALLBACK_ACAO_MONTHLY_GROWTH, 
+        success: false, 
+        error: data?.message || `No time series data found for ${symbol}.`
+      };
+
+    } catch (error: any) {
+      console.error(`TwelveData API request error for ${symbol}:`, error.response?.data || error.message);
+      let errorMessage = "Falha ao buscar dados de crescimento da ação.";
+      if(error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+      } else if (error.message) {
+          errorMessage = error.message;
+      }
+      return { 
+        avgMonthlyGrowth: FALLBACK_ACAO_MONTHLY_GROWTH, 
+        success: false, 
+        error: errorMessage
+      };
     }
   };
-  
 
-  const calcularInvestimento = async () => {
-    setCarregando(true);
-    setErroApi("");
+  const handleCalcularEsalvar = async () => {
+    setIsLoading(true);
+    setApiError(null);
+    setResultados(null);
+    setDadosGrafico({ labels: [], values: [] });
 
     try {
-      const {
-        inicial,
-        mensal,
-        meses,
-        inflacao,
-        tipoInvestimento,
-        tipoRendaFixa,
-      } = valores;
-
+      const { inicial, mensal, meses: numMeses, inflacao, tipoInvestimento, tipoRendaFixa } = valores;
       const investimentoInicial = stringParaFloat(inicial);
       const contribuicaoMensal = stringParaFloat(mensal);
-      const inflacaoDecimal = stringParaFloat(inflacao) / 100;
+      const inflacaoAnualDecimal = stringParaFloat(inflacao) / 100;
 
-      const taxaMensal =
-        tipoInvestimento === "acoes"
-          ? (await obterDadosAcao(simboloAcao)).avgMonthlyGrowth
-          : taxasRetorno["renda-fixa"][
-              tipoRendaFixa as keyof typeof taxasRetorno["renda-fixa"]
-            ];
+      let taxaMensalEstimada: number;
+      let nomeAtivoParaLog = tipoInvestimento === "acoes" ? simboloAcaoSelecionado : tipoRendaFixa;
 
-      let valorAtual = investimentoInicial;
-      let totalInvestido = investimentoInicial;
-      const labels: string[] = [];
-      const values: number[] = [valorAtual];
-
-      for (let i = 0; i < meses; i++) {
-        valorAtual *= 1 + taxaMensal;
-        if (i > 0) {
-          valorAtual += contribuicaoMensal * (1 + taxaMensal);
-          totalInvestido += contribuicaoMensal;
+      if (tipoInvestimento === "acoes") {
+        const dadosCrescimento = await obterDadosCrescimentoAcao(simboloAcaoSelecionado);
+        taxaMensalEstimada = dadosCrescimento.avgMonthlyGrowth;
+        if (!dadosCrescimento.success) {
+          setApiError(dadosCrescimento.error || `Falha ao obter taxa para ${simboloAcaoSelecionado}. Usando taxa padrão.`);
         }
-        labels.push(`Mês ${i + 1}`);
-        values.push(parseFloat(valorAtual.toFixed(2)));
+      } else {
+        taxaMensalEstimada = taxasRetornoRendaFixa[tipoRendaFixa] || 0.005;
       }
 
-      setResultados({
-        valorFuturo: valorAtual,
-        totalInvestido,
-        retorno: valorAtual - totalInvestido,
-        ajusteInflacao: valorAtual / Math.pow(1 + inflacaoDecimal, meses),
-      });
+      let valorAcumulado = investimentoInicial;
+      let totalInvestidoCalculado = investimentoInicial;
+      const labelsParaGrafico: string[] = ["Mês 0"];
+      const valoresParaGrafico: number[] = [parseFloat(valorAcumulado.toFixed(2))];
 
-      setDadosGrafico({ labels, values });
-    } catch (error) {
+      for (let i = 1; i <= numMeses; i++) {
+        if (i > 1 || investimentoInicial === 0) {
+             valorAcumulado += contribuicaoMensal;
+        }
+        valorAcumulado *= (1 + taxaMensalEstimada);
+        
+        labelsParaGrafico.push(`Mês ${i}`);
+        valoresParaGrafico.push(parseFloat(valorAcumulado.toFixed(2)));
+      }
+      totalInvestidoCalculado = investimentoInicial + (contribuicaoMensal * numMeses);
+
+
+      const valorFuturoBruto = valorAcumulado;
+      const retornoBruto = valorFuturoBruto - totalInvestidoCalculado;
+      const valorAjustadoPelaInflacao = valorFuturoBruto / Math.pow(1 + inflacaoAnualDecimal, numMeses / 12);
+
+      setResultados({
+        valorFuturoBruto,
+        totalInvestido: totalInvestidoCalculado,
+        retornoBruto,
+        valorAjustadoPelaInflacao,
+      });
+      setDadosGrafico({ labels: labelsParaGrafico, values: valoresParaGrafico });
+
+      if (isAuthenticated && user) {
+        const simulationPayload = {
+          tipo: tipoInvestimento,
+          nome: nomeAtivoParaLog,
+          valor: tipoInvestimento === "acoes" ? precoAtualAcaoParaLog : null,
+          invest_inicial: investimentoInicial,
+          invest_mensal: contribuicaoMensal,
+          meses: Number(numMeses),
+          inflacao: inflacaoAnualDecimal,
+        };
+        try {
+          await apiClient.post('/log-Simulation', simulationPayload);
+        } catch (logError: any) {
+          console.error("Erro ao salvar simulação no backend:", logError);
+          setApiError(prevError => prevError ? `${prevError} Falha ao salvar.` : "Falha ao salvar simulação.");
+        }
+      }
+    } catch (error: any) {
       console.error("Erro no cálculo:", error);
-      setErroApi("Erro ao calcular. Tente novamente.");
+      setApiError(`Erro ao calcular: ${error.message}`);
     } finally {
-      setCarregando(false);
+      setIsLoading(false);
     }
-    console.log("Simulando para:", simboloAcao);
   };
+
+  const handlePrecoAcaoSymbolChange = (novoSimbolo: string, precoAtual: number | null) => {
+    setSimboloAcaoSelecionado(novoSimbolo);
+    setPrecoAtualAcaoParaLog(precoAtual);
+  };
+
 
   return (
     <section id="simulador" className="simulador">
-      <h2 className="titulo-simulador">
-        Simulador de Crescimento de Investimentos
-      </h2>
-
-      {erroApi && (
-        <div
-          className="mensagem-erro"
-          style={{ color: "red", textAlign: "center", margin: "1rem 0" }}
-        >
-          {erroApi}
-        </div>
-      )}
-
-      <div className="formulario-simulador">
+      <h2 className="titulo-simulador">Simulador de Investimentos</h2>
+      {apiError && <div className="mensagem-erro" style={{ color: "red", textAlign: "center", margin: "1rem 0" }}>{apiError}</div>}
+      
+      <form className="formulario-simulador" onSubmit={(e) => e.preventDefault()}>
         <div className="grupo-formulario">
-          <label htmlFor="inicial">Investimento Inicial ($)</label>
-          <input
-            type="text"
-            id="inicial"
-            value={valores.inicial}
-            inputMode="numeric"
-            onChange={formatarInput}
-          />
+          <label htmlFor="inicial">Investimento Inicial (R$)</label>
+          <input type="text" id="inicial" value={valores.inicial} onChange={handleInputChange} placeholder="Ex: 1.000,00"/>
         </div>
-
         <div className="grupo-formulario">
-          <label htmlFor="mensal">Contribuição Mensal ($)</label>
-          <input
-            type="text"
-            id="mensal"
-            value={valores.mensal}
-            inputMode="numeric"
-            onChange={formatarInput}
-          />
+          <label htmlFor="mensal">Contribuição Mensal (R$)</label>
+          <input type="text" id="mensal" value={valores.mensal} onChange={handleInputChange} placeholder="Ex: 100,00"/>
         </div>
-
         <div className="grupo-formulario">
-          <label htmlFor="meses">Período de Investimento (Meses)</label>
-          <input
-            type="number"
-            id="meses"
-            value={valores.meses}
-            min="1"
-            max="1200"
-            onChange={formatarInput}
-          />
+          <label htmlFor="meses">Período (Meses)</label>
+          <input type="number" id="meses" value={valores.meses} min="1" max="600" onChange={handleInputChange} />
         </div>
-
         <div className="grupo-formulario">
-          <label htmlFor="inflacao">Taxa de Inflação Esperada (%)</label>
-          <input
-            type="text"
-            id="inflacao"
-            value={valores.inflacao}
-            inputMode="numeric"
-            onChange={formatarInput}
-          />
+          <label htmlFor="inflacao">Inflação Anual Estimada (%)</label>
+          <input type="text" id="inflacao" value={valores.inflacao} onChange={handleInputChange} placeholder="Ex: 5,0"/>
         </div>
-
         <div className="grupo-formulario">
           <label htmlFor="tipoInvestimento">Tipo de Investimento</label>
-          <select
-            id="tipoInvestimento"
-            value={valores.tipoInvestimento}
-            onChange={formatarSelect}
-          >
+          <select id="tipoInvestimento" value={valores.tipoInvestimento} onChange={handleInputChange}>
             <option value="acoes">Ações</option>
             <option value="renda-fixa">Renda Fixa</option>
           </select>
@@ -271,71 +276,58 @@ export const Simulador = () => {
 
         {valores.tipoInvestimento === "acoes" && (
           <div className="grupo-formulario">
-            <label>Dados em Tempo Real (Finnhub)</label>
-            <PrecoAcao onSimboloChange={setSimboloAcao} />
+            <label>Símbolo da Ação (Ex: AAPL, MGLU3.SA)</label>
+            <PrecoAcao onSimboloChange={handlePrecoAcaoSymbolChange} />
           </div>
         )}
 
         {valores.tipoInvestimento === "renda-fixa" && (
           <div className="grupo-formulario">
-            <label htmlFor="tipoRendaFixa">Tipo de Renda Fixa</label>
-            <select
-              id="tipoRendaFixa"
-              value={valores.tipoRendaFixa}
-              onChange={formatarSelect}
-            >
-              {Object.entries(taxasRetorno["renda-fixa"]).map(([key]) => (
-                <option key={key} value={key}>
-                  {key.toUpperCase()}
-                </option>
+            <label htmlFor="tipoRendaFixa">Opção de Renda Fixa</label>
+            <select id="tipoRendaFixa" value={valores.tipoRendaFixa} onChange={handleInputChange}>
+              {Object.keys(taxasRetornoRendaFixa).map((key) => (
+                <option key={key} value={key}>{key.toUpperCase().replace(/-/g, ' ')}</option>
               ))}
             </select>
           </div>
         )}
-      </div>
+      </form>
 
       <Scroll
-        href="#simulador"
-        className={`botao botao-primario ${
-          carregando ? "botao-desabilitado" : ""
-        }`}
-        style={{
-          display: "block",
-          width: "200px",
-          margin: "0 auto 2rem",
-          textAlign: "center",
-        }}
-        onClick={calcularInvestimento}
+        href="#simulador-resultados"
+        className={`botao botao-primario ${isLoading ? "botao-desabilitado" : ""}`}
+        style={{ display: "block", width: "fit-content", margin: "2rem auto", textAlign: "center" }}
+        onClick={!isLoading ? handleCalcularEsalvar : undefined}
       >
-        {carregando ? "Calculando..." : "Calcular Resultados"}
+        {isLoading ? <Loader /> : "Calcular e Salvar Resultados"}
       </Scroll>
 
-      <div className="resultados">
-        {Object.entries(resultados).map(([key, value]) => (
-          <div key={key} className="cartao-resultado">
-            <div className="valor-resultado">{formatarMoeda(value)}</div>
-            <div className="rotulo-resultado">
-              {key === "valorFuturo"
-                ? "Valor Futuro"
-                : key === "totalInvestido"
-                ? "Total Investido"
-                : key === "retorno"
-                ? "Retornos do Investimento"
-                : "Valor Ajustado pela Inflação"}
-            </div>
+      {resultados && (
+        <div id="simulador-resultados" className="resultados">
+          <div className="cartao-resultado">
+            <div className="valor-resultado">{formatarMoeda(resultados.totalInvestido)}</div>
+            <div className="rotulo-resultado">Total Investido</div>
           </div>
-        ))}
-      </div>
+          <div className="cartao-resultado">
+            <div className="valor-resultado">{formatarMoeda(resultados.retornoBruto)}</div>
+            <div className="rotulo-resultado">Retornos Brutos</div>
+          </div>
+          <div className="cartao-resultado">
+            <div className="valor-resultado">{formatarMoeda(resultados.valorFuturoBruto)}</div>
+            <div className="rotulo-resultado">Valor Futuro Bruto</div>
+          </div>
+          <div className="cartao-resultado">
+            <div className="valor-resultado">{formatarMoeda(resultados.valorAjustadoPelaInflacao)}</div>
+            <div className="rotulo-resultado">Valor Futuro (Ajustado p/ Inflação)</div>
+          </div>
+        </div>
+      )}
 
-      <div className="grafico">
-        {dadosGrafico.values.length > 0 ? (
+      {dadosGrafico.values.length > 0 && (
+        <div className="grafico" style={{marginTop: "2rem"}}>
           <Grafico dados={dadosGrafico} />
-        ) : (
-          <div className="placeholder-grafico">
-            [Gráfico de Crescimento do Investimento]
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 };
