@@ -26,7 +26,6 @@ function App() {
         </nav>
       </header>
       <main className="conteiner" style={{ paddingTop: '80px', paddingBottom: '2rem' }}>
-        {/* Content for authenticated users */}
         <h1 className="titulo-destaque" style={{textAlign: 'center', marginBottom: '2rem'}}>
           Bem-vindo(a) ao SimulaInvest, {user.name}!
         </h1>

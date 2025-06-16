@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { AuthApp } from './AuthApp.tsx'; // Use AuthApp
+import { AuthApp } from './AuthApp.tsx';
 import { AuthProvider } from './auth/AuthContext.tsx';
 import { BrowserRouter } from 'react-router-dom';
 import './index.css';

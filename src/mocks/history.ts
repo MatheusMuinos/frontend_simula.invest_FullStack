@@ -1,4 +1,3 @@
-// src/mocks/history.ts
 export const mockHistory = [
   {
     id: '1',

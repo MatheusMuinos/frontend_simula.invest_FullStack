@@ -1,4 +1,3 @@
-// src/components/UserDashboard.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import apiClient from '../services/api';

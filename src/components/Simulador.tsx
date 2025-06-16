@@ -1,18 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from 'axios';
 import { Scroll } from "./Scroll";
 import Grafico from "./Grafico";
 import PrecoAcao from "./PrecoAcao";
-import apiClient from '../services/api';
-import { useAuth } from '../auth/AuthContext';
 import { Loader } from "./Loader";
+import { useSimulations } from '../hooks/useSimulations';
 
 interface ValoresSimulador {
   inicial: string;
   mensal: string;
   meses: number;
   inflacao: string;
-  tipoInvestimento: 'acoes' | 'renda-fixa';
+  tipoInvestimento: 'acao' | 'renda-fixa';
   tipoRendaFixa: string;
 }
 
@@ -40,28 +39,36 @@ const taxasRetornoRendaFixa: Record<string, number> = {
 const FALLBACK_ACAO_MONTHLY_GROWTH = 0.01;
 
 export const Simulador: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { 
+    simulations,
+    isLoading: isHookLoading,
+    error: hookError,
+    fetchSimulations,
+    addSimulation 
+  } = useSimulations();
 
   const [valores, setValores] = useState<ValoresSimulador>({
     inicial: "1000,00",
     mensal: "100,00",
     meses: 12,
     inflacao: "5,0",
-    tipoInvestimento: "acoes",
+    tipoInvestimento: "acao",
     tipoRendaFixa: "cdb",
   });
 
   const [simboloAcaoSelecionado, setSimboloAcaoSelecionado] = useState("AAPL");
   const [precoAtualAcaoParaLog, setPrecoAtualAcaoParaLog] = useState<number | null>(null);
-
   const [resultados, setResultados] = useState<ResultadosSimulacao | null>(null);
   const [dadosGrafico, setDadosGrafico] = useState<{ labels: string[]; values: number[] }>({
     labels: [],
     values: [],
   });
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
+  useEffect(() => {
+    fetchSimulations();
+  }, [fetchSimulations]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
@@ -78,19 +85,19 @@ export const Simulador: React.FC = () => {
     return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimentoAcao> => {
-  const API_KEY_TWELVE_DATA = import.meta.env.VITE_TWELVEDATA_API_KEY;
-  const interval = "1month";
-  const outputsize = 24;
+  const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimentoAcao> => {
+    const API_KEY_TWELVE_DATA = import.meta.env.VITE_TWELVEDATA_API_KEY;
+    const interval = "1month";
+    const outputsize = 24;
 
-  if (!API_KEY_TWELVE_DATA) {
-    console.error("TwelveData API key (VITE_TWELVEDATA_API_KEY) is missing from .env file.");
-    return { 
-      avgMonthlyGrowth: FALLBACK_ACAO_MONTHLY_GROWTH, 
-      success: false, 
-      error: "API key configuration error." 
-    };
-  }
+    if (!API_KEY_TWELVE_DATA) {
+      console.error("TwelveData API key (VITE_TWELVEDATA_API_KEY) is missing from .env file.");
+      return { 
+        avgMonthlyGrowth: FALLBACK_ACAO_MONTHLY_GROWTH, 
+        success: false, 
+        error: "API key configuration error." 
+      };
+    }
 
     try {
       const response = await axios.get(
@@ -136,6 +143,7 @@ const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimen
           success: true 
         };
       }
+      
       console.warn(`No sufficient time series data found for ${symbol} from TwelveData. Using fallback. Response status: ${data?.status || 'N/A'}, Code: ${data?.code || 'N/A'}`);
       return { 
         avgMonthlyGrowth: FALLBACK_ACAO_MONTHLY_GROWTH, 
@@ -160,8 +168,8 @@ const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimen
   };
 
   const handleCalcularEsalvar = async () => {
-    setIsLoading(true);
-    setApiError(null);
+    setIsCalculating(true);
+    setCalculationError(null);
     setResultados(null);
     setDadosGrafico({ labels: [], values: [] });
 
@@ -170,15 +178,14 @@ const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimen
       const investimentoInicial = stringParaFloat(inicial);
       const contribuicaoMensal = stringParaFloat(mensal);
       const inflacaoAnualDecimal = stringParaFloat(inflacao) / 100;
-
       let taxaMensalEstimada: number;
-      let nomeAtivoParaLog = tipoInvestimento === "acoes" ? simboloAcaoSelecionado : tipoRendaFixa;
+      let nomeAtivoParaLog = tipoInvestimento === "acao" ? simboloAcaoSelecionado : tipoRendaFixa;
 
-      if (tipoInvestimento === "acoes") {
+      if (tipoInvestimento === "acao") {
         const dadosCrescimento = await obterDadosCrescimentoAcao(simboloAcaoSelecionado);
         taxaMensalEstimada = dadosCrescimento.avgMonthlyGrowth;
         if (!dadosCrescimento.success) {
-          setApiError(dadosCrescimento.error || `Falha ao obter taxa para ${simboloAcaoSelecionado}. Usando taxa padrão.`);
+          setCalculationError(dadosCrescimento.error || `Falha ao obter taxa para ${simboloAcaoSelecionado}.`);
         }
       } else {
         taxaMensalEstimada = taxasRetornoRendaFixa[tipoRendaFixa] || 0.005;
@@ -190,51 +197,39 @@ const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimen
       const valoresParaGrafico: number[] = [parseFloat(valorAcumulado.toFixed(2))];
 
       for (let i = 1; i <= numMeses; i++) {
-        if (i > 1 || investimentoInicial === 0) {
-             valorAcumulado += contribuicaoMensal;
-        }
+        if (i > 1 || investimentoInicial === 0) valorAcumulado += contribuicaoMensal;
         valorAcumulado *= (1 + taxaMensalEstimada);
-        
         labelsParaGrafico.push(`Mês ${i}`);
         valoresParaGrafico.push(parseFloat(valorAcumulado.toFixed(2)));
       }
       totalInvestidoCalculado = investimentoInicial + (contribuicaoMensal * numMeses);
 
-
       const valorFuturoBruto = valorAcumulado;
       const retornoBruto = valorFuturoBruto - totalInvestidoCalculado;
       const valorAjustadoPelaInflacao = valorFuturoBruto / Math.pow(1 + inflacaoAnualDecimal, numMeses / 12);
 
-      setResultados({
-        valorFuturoBruto,
-        totalInvestido: totalInvestidoCalculado,
-        retornoBruto,
-        valorAjustadoPelaInflacao,
-      });
+      setResultados({ valorFuturoBruto, totalInvestido: totalInvestidoCalculado, retornoBruto, valorAjustadoPelaInflacao });
       setDadosGrafico({ labels: labelsParaGrafico, values: valoresParaGrafico });
 
-      if (isAuthenticated && user) {
-        const simulationPayload = {
-          tipo: tipoInvestimento,
-          nome: nomeAtivoParaLog,
-          valor: tipoInvestimento === "acoes" ? precoAtualAcaoParaLog : null,
-          invest_inicial: investimentoInicial,
-          invest_mensal: contribuicaoMensal,
-          meses: Number(numMeses),
-          inflacao: inflacaoAnualDecimal,
-        };
-        try {
-          await apiClient.post('/log-Simulation', simulationPayload);
-        } catch (logError: any) {
-          console.error("Erro ao salvar simulação no backend:", logError);
-          setApiError(prevError => prevError ? `${prevError} Falha ao salvar.` : "Falha ao salvar simulação.");
-        }
-      }
+      const simulationPayload = {
+        tipo: tipoInvestimento,
+        nome: nomeAtivoParaLog,
+        valor: tipoInvestimento === "acao" ? precoAtualAcaoParaLog : null,
+        invest_inicial: investimentoInicial,
+        invest_mensal: contribuicaoMensal,
+        meses: Number(numMeses),
+        inflacao: inflacaoAnualDecimal,
+      };
+
+      await addSimulation(simulationPayload);
+
     } catch (error: any) {
-      console.error("Erro no cálculo:", error);
-      setApiError(`Erro ao calcular: ${error.message}`);
+      console.error("Falha ao calcular ou salvar:", error);
+      if(!calculationError) {
+         setCalculationError("Ocorreu um erro. Verifique os logs ou tente novamente.");
+      }
     } finally {
-      setIsLoading(false);
+      setIsCalculating(false);
     }
   };
 
@@ -243,11 +238,15 @@ const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimen
     setPrecoAtualAcaoParaLog(precoAtual);
   };
 
-
   return (
     <section id="simulador" className="simulador">
       <h2 className="titulo-simulador">Simulador de Investimentos</h2>
-      {apiError && <div className="mensagem-erro" style={{ color: "red", textAlign: "center", margin: "1rem 0" }}>{apiError}</div>}
+      
+      {(calculationError || hookError) && (
+        <div className="mensagem-erro" style={{ color: "red", textAlign: "center", margin: "1rem 0" }}>
+            {calculationError || hookError}
+        </div>
+      )}
       
       <form className="formulario-simulador" onSubmit={(e) => e.preventDefault()}>
         <div className="grupo-formulario">
@@ -269,12 +268,12 @@ const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimen
         <div className="grupo-formulario">
           <label htmlFor="tipoInvestimento">Tipo de Investimento</label>
           <select id="tipoInvestimento" value={valores.tipoInvestimento} onChange={handleInputChange}>
-            <option value="acoes">Ações</option>
+            <option value="acao">Ações</option>
             <option value="renda-fixa">Renda Fixa</option>
           </select>
         </div>
 
-        {valores.tipoInvestimento === "acoes" && (
+        {valores.tipoInvestimento === "acao" && (
           <div className="grupo-formulario">
             <label>Símbolo da Ação (Ex: AAPL, MGLU3.SA)</label>
             <PrecoAcao onSimboloChange={handlePrecoAcaoSymbolChange} />
@@ -295,11 +294,11 @@ const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimen
 
       <Scroll
         href="#simulador-resultados"
-        className={`botao botao-primario ${isLoading ? "botao-desabilitado" : ""}`}
+        className={`botao botao-primario ${(isCalculating || isHookLoading) ? "botao-desabilitado" : ""}`}
         style={{ display: "block", width: "fit-content", margin: "2rem auto", textAlign: "center" }}
-        onClick={!isLoading ? handleCalcularEsalvar : undefined}
+        onClick={!(isCalculating || isHookLoading) ? handleCalcularEsalvar : undefined}
       >
-        {isLoading ? <Loader /> : "Calcular e Salvar Resultados"}
+        {(isCalculating || isHookLoading) ? <Loader /> : "Calcular e Salvar Resultados"}
       </Scroll>
 
       {resultados && (
@@ -328,6 +327,24 @@ const obterDadosCrescimentoAcao = async (symbol: string): Promise<DadosCrescimen
           <Grafico dados={dadosGrafico} />
         </div>
       )}
+
+      <div className="saved-simulations" style={{marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid #eee"}}>
+        <h3 style={{textAlign: "center"}}>Simulações Salvas</h3>
+        {isHookLoading && simulations.length === 0 && <p style={{textAlign: "center"}}>Carregando histórico...</p>}
+        {simulations.length > 0 ? (
+          <ul style={{listStyle: "none", padding: 0}}>
+            {simulations.map(sim => (
+              <li key={sim.id} style={{background: "#f9f9f9", border: "1px solid #ddd", padding: "10px", marginBottom: "10px", borderRadius: "5px"}}>
+                <strong>{sim.nome.toUpperCase()}</strong> - Investimento Inicial: {formatarMoeda(sim.invest_inicial)} - 
+                Salvo em: {new Date(sim.createdAt).toLocaleDateString('pt-BR')}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          !isHookLoading && <p style={{textAlign: "center"}}>Nenhuma simulação salva encontrada.</p>
+        )}
+      </div>
+
     </section>
   );
 };

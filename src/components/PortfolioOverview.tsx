@@ -1,4 +1,3 @@
-// src/components/PortfolioOverview.tsx
 import styles from './Portfolio.module.css';
 
 export const PortfolioOverview = () => {
