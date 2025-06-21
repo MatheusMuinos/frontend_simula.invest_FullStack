@@ -16,14 +16,13 @@ interface BackendSimulation {
   meses: number;
   inflacao: number;
   createdAt: string;
-
 }
 
 const formatCurrency = (value: number) => 
   value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export const UserDashboard: React.FC = () => {
-  const { user, token } = useAuth();
+  const { user } = useAuth(); 
   const [activeTab, setActiveTab] = useState<'historico' | 'investimentos'>('historico');
   const [simulations, setSimulations] = useState<BackendSimulation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
