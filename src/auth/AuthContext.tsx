@@ -1,5 +1,5 @@
-// src/auth/AuthContext.tsx
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import apiClient from '../services/api';
 
 interface User {
   id: string;
@@ -9,72 +9,119 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  isLoading: boolean;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  register: (userData: { name: string; email: string; password: string }) => Promise<void>;
+  register: (userData: { username: string; email: string; password: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  // Recupera o usuário do localStorage ao inicializar
-  const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('simulainvest_user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
-
-  // Atualiza o localStorage sempre que o usuário mudar
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('simulainvest_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('simulainvest_user');
-    }
-  }, [user]);
-
-  const login = async (email: string, password: string) => {
-    // Mock: Validação básica (substituir por chamada API depois)
-    if (!email.includes('@') || password.length < 6) {
-      throw new Error('Credenciais inválidas');
-    }
-
-    const mockUser = {
-      id: 'mock-user-' + Date.now(),
-      name: email.split('@')[0] || 'Investidor',
-      email
+const decodeToken = (token: string): User | null => {
+  try {
+    const payloadBase64 = token.split('.')[1];
+    const decodedJson = atob(payloadBase64);
+    const decodedPayload = JSON.parse(decodedJson);
+    return {
+      id: decodedPayload.id,
+      name: decodedPayload.username || 'Usuário',
+      email: decodedPayload.email || ''
     };
-    
-    setUser(mockUser);
+  } catch (error) {
+    console.error("Error decoding token:", error);
+    return null;
+  }
+};
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('simulainvest_token'));
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const initializeAuth = useCallback(async () => {
+    const storedToken = localStorage.getItem('simulainvest_token');
+    if (storedToken) {
+      setToken(storedToken);
+      const decodedUser = decodeToken(storedToken);
+      if (decodedUser) {
+        setUser(decodedUser);
+      } else {
+        localStorage.removeItem('simulainvest_token');
+        setToken(null);
+      }
+    }
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
+  const login = async (username: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.post('/login', { username, password });
+      const { token: newToken, message } = response.data;
+
+      if (newToken) {
+        localStorage.setItem('simulainvest_token', newToken);
+        setToken(newToken);
+        const decodedUser = decodeToken(newToken);
+        setUser(decodedUser);
+      } else {
+        throw new Error(message || 'Login falhou, token não recebido.');
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Login falhou.';
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('simulainvest_token');
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const register = async (userData: { name: string; email: string; password: string }) => {
-    // Mock: Validação básica
-    if (userData.password.length < 6) {
-      throw new Error('Senha deve ter 6+ caracteres');
+  const register = async (userData: { username: string; email: string; password: string }) => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.post('/register', {
+        username: userData.username,
+        email: userData.email,
+        password: userData.password,
+      });
+      console.log(response.data.message);
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Registro falhou.';
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-
-    const mockUser = {
-      id: 'mock-user-' + Date.now(),
-      name: userData.name,
-      email: userData.email
-    };
-    
-    setUser(mockUser);
   };
 
   const logout = () => {
+    setIsLoading(true);
     setUser(null);
+    setToken(null);
+    localStorage.removeItem('simulainvest_token');
+    delete apiClient.defaults.headers.common['Authorization'];
+    setIsLoading(false);
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        token,
+        isAuthenticated: !!token && !!user,
+        isLoading,
         login,
         logout,
-        register
+        register,
       }}
     >
       {children}

@@ -1,19 +1,18 @@
-// src/auth/Register.tsx
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import styles from './Auth.module.css';
 
 export function Register() {
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const { register } = useAuth();
+  const { register, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     
@@ -23,10 +22,11 @@ export function Register() {
     }
 
     try {
-      await register({ name, email, password });
-      navigate('/'); // Redireciona para a página principal após registro
-    } catch (err) {
-      setError('Erro ao cadastrar. Tente novamente.');
+      await register({ username, email, password });
+      alert('Cadastro realizado com sucesso! Por favor, faça o login.');
+      navigate('/login');
+    } catch (err: any) {
+      setError(err.message || 'Erro ao cadastrar. Tente novamente.');
     }
   };
 
@@ -34,23 +34,20 @@ export function Register() {
     <div className={styles.authContainer}>
       <div className={styles.authCard}>
         <h2 className={styles.authTitle}>Crie sua conta</h2>
-        
         {error && <div className={styles.authError}>{error}</div>}
-
         <form onSubmit={handleSubmit} className={styles.authForm}>
           <div className={styles.formGroup}>
-            <label htmlFor="name">Nome completo</label>
+            <label htmlFor="username">Nome de Usuário</label>
             <input
               type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
               className={styles.authInput}
-              placeholder="Seu nome"
+              placeholder="Escolha um nome de usuário"
             />
           </div>
-
           <div className={styles.formGroup}>
             <label htmlFor="email">E-mail</label>
             <input
@@ -63,7 +60,6 @@ export function Register() {
               placeholder="seu@email.com"
             />
           </div>
-
           <div className={styles.formGroup}>
             <label htmlFor="password">Senha</label>
             <input
@@ -77,7 +73,6 @@ export function Register() {
               placeholder="••••••"
             />
           </div>
-
           <div className={styles.formGroup}>
             <label htmlFor="confirmPassword">Confirme sua senha</label>
             <input
@@ -91,12 +86,10 @@ export function Register() {
               placeholder="••••••"
             />
           </div>
-
-          <button type="submit" className={styles.authButton}>
-            Cadastrar
+          <button type="submit" className={styles.authButton} disabled={isLoading}>
+            {isLoading ? 'Cadastrando...' : 'Cadastrar'}
           </button>
         </form>
-
         <div className={styles.authFooter}>
           <span>Já tem uma conta?</span>
           <Link to="/login" className={styles.authLink}>

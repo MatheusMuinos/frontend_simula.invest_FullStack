@@ -1,4 +1,3 @@
-// src/components/Loader.tsx
 import styles from './Loader.module.css';
 
 export const Loader = () => {
