@@ -1,11 +1,13 @@
 import { Simulador } from "./components/Simulador";
-import { useAuth } from './auth/AuthContext';
 import { UserDashboard } from "./components/UserDashboard";
+import TabelaAcoes from "./components/TabelaAcoes";
+import { useAuth } from './auth/AuthContext';
 import "./index.css";
 import "./App.css";
 
 function App() {
   const { user, logout } = useAuth();
+
   if (!user) {
     return <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>Erro: Usuário não autenticado. Redirecionando...</div>;
   }
@@ -18,7 +20,6 @@ function App() {
             <a href="/">Simula<span>Invest</span></a>
           </div>
           <div className="user-actions">
-            <span>Olá, {user.name}!</span>
             <button onClick={logout} className="botao botao-secundario">
               Sair
             </button>
@@ -30,7 +31,12 @@ function App() {
           Bem-vindo(a) ao SimulaInvest, {user.name}!
         </h1>
         <Simulador />
-        <UserDashboard />
+        <div style={{ marginTop: '3rem', borderTop: '2px solid #e2e8f0', paddingTop: '2rem' }}>
+            <UserDashboard />
+        </div>
+        <div style={{ marginTop: '3rem', borderTop: '2px solid #e2e8f0', paddingTop: '2rem' }}>
+            <TabelaAcoes />
+        </div>
       </main>
     </>
   );
