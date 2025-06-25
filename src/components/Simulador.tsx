@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from 'axios';
 import { useSimulations } from '../hooks/useSimulations';
 import { Scroll } from "./Scroll";
 import Grafico from "./Grafico";
 import PrecoAcao from "./PrecoAcao";
 import { Loader } from "./Loader";
+import { ComparadorModal } from "./ComparadorModal";
+import { CenarioCalculator } from "./CenarioCalculator";
 
 interface ValoresSimulador {
   inicial: string;
@@ -39,7 +41,13 @@ const taxasRetornoRendaFixa: Record<string, number> = {
 const FALLBACK_ACAO_MONTHLY_GROWTH = 0.01;
 
 export const Simulador: React.FC = () => {
-  const { addSimulation, isLoading: isHookLoading, error: hookError } = useSimulations();
+  const { 
+    simulations,
+    isLoading: isHookLoading,
+    error: hookError,
+    fetchSimulations,
+    addSimulation 
+  } = useSimulations();
 
   const [valores, setValores] = useState<ValoresSimulador>({
     inicial: "1000,00",
@@ -59,6 +67,15 @@ export const Simulador: React.FC = () => {
   });
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculationError, setCalculationError] = useState<string | null>(null);
+  const [taxaMensalAtual, setTaxaMensalAtual] = useState<number>(0);
+  
+  // Estados para os modais
+  const [isComparadorOpen, setIsComparadorOpen] = useState(false);
+  const [isCenarioOpen, setIsCenarioOpen] = useState(false);
+
+  useEffect(() => {
+    fetchSimulations();
+  }, [fetchSimulations]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
@@ -120,11 +137,13 @@ export const Simulador: React.FC = () => {
       if (tipoInvestimento === "acao") {
         const dadosCrescimento = await obterDadosCrescimentoAcao(simboloAcaoSelecionado);
         taxaMensalEstimada = dadosCrescimento.avgMonthlyGrowth;
+        setTaxaMensalAtual(taxaMensalEstimada);
         if (!dadosCrescimento.success) {
           setCalculationError(dadosCrescimento.error || `Falha ao obter taxa para ${simboloAcaoSelecionado}.`);
         }
       } else {
         taxaMensalEstimada = taxasRetornoRendaFixa[tipoRendaFixa] || 0.005;
+        setTaxaMensalAtual(taxaMensalEstimada);
       }
 
       let valorAcumulado = investimentoInicial;
@@ -265,6 +284,84 @@ export const Simulador: React.FC = () => {
           <Grafico dados={dadosGrafico} />
         </div>
       )}
+
+      {/* Botões para as novas features */}
+      {resultados && (
+        <div style={{ 
+          marginTop: "2rem", 
+          display: "flex", 
+          gap: "1rem", 
+          justifyContent: "center",
+          flexWrap: "wrap"
+        }}>
+          <button 
+            onClick={() => setIsCenarioOpen(true)}
+            className="botao botao-secundario"
+            style={{ minWidth: "200px" }}
+          >
+            📊 Testar Cenários "E Se?"
+          </button>
+          
+          {simulations.length > 1 && (
+            <button 
+              onClick={() => setIsComparadorOpen(true)}
+              className="botao botao-primario"
+              style={{ minWidth: "200px" }}
+            >
+              🔄 Comparar Simulações
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Histórico de simulações salvas */}
+      <div className="saved-simulations" style={{marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid #eee"}}>
+        <h3 style={{textAlign: "center"}}>Simulações Salvas</h3>
+        {isHookLoading && simulations.length === 0 && <p style={{textAlign: "center"}}>Carregando histórico...</p>}
+        {simulations.length > 0 ? (
+          <>
+            <ul style={{listStyle: "none", padding: 0}}>
+              {simulations.slice(0, 5).map(sim => (
+                <li key={sim.id} style={{background: "#f9f9f9", border: "1px solid #ddd", padding: "10px", marginBottom: "10px", borderRadius: "5px"}}>
+                  <strong>{sim.nome.toUpperCase()}</strong> - Investimento Inicial: {formatarMoeda(sim.invest_inicial)} - 
+                  Salvo em: {new Date(sim.createdAt).toLocaleDateString('pt-BR')}
+                </li>
+              ))}
+            </ul>
+            {simulations.length > 1 && (
+              <div style={{ textAlign: "center", marginTop: "1rem" }}>
+                <button 
+                  onClick={() => setIsComparadorOpen(true)}
+                  className="botao botao-primario"
+                >
+                  🔄 Comparar Simulações ({simulations.length} disponíveis)
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          !isHookLoading && <p style={{textAlign: "center"}}>Nenhuma simulação salva encontrada.</p>
+        )}
+      </div>
+
+      {/* Modais das novas features */}
+      <ComparadorModal 
+        isOpen={isComparadorOpen}
+        onClose={() => setIsComparadorOpen(false)}
+        simulations={simulations}
+      />
+      
+      <CenarioCalculator 
+        isOpen={isCenarioOpen}
+        onClose={() => setIsCenarioOpen(false)}
+        baseScenario={{
+          inicial: stringParaFloat(valores.inicial),
+          mensal: stringParaFloat(valores.mensal),
+          meses: valores.meses,
+          taxaMensal: taxaMensalAtual,
+          inflacao: stringParaFloat(valores.inflacao) / 100
+        }}
+      />
 
     </section>
   );
