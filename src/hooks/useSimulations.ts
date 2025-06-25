@@ -15,6 +15,10 @@ export interface Simulation {
   updatedAt: string;
 }
 
+type SimulationUpdatePayload = Partial<Omit<Simulation, 'id' | 'userId' | 'createdAt' | 'updatedAt'>> & {
+    simulationId: number;
+};
+
 export const useSimulations = () => {
   const [simulations, setSimulations] = useState<Simulation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,11 +28,11 @@ export const useSimulations = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiClient.get<Simulation[]>('/get-Simulations'); 
-      setSimulations(response.data);
+      const response = await apiClient.get<Simulation[]>('/get-Simulations');
+      const sorted = response.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setSimulations(sorted);
     } catch (err: any) {
-      console.error("Failed to fetch simulations:", err);
-      setError(err.response?.data?.message || "Não foi possível carregar as simulações.");
+      setError(err.response?.data?.message || "Could not load simulations.");
     } finally {
       setIsLoading(false);
     }
@@ -39,15 +43,40 @@ export const useSimulations = () => {
     setError(null);
     try {
       const response = await apiClient.post<Simulation>('/log-Simulation', simulationPayload);
-      
-      setSimulations(prevSimulations => [response.data, ...prevSimulations]);
-
+      setSimulations(prev => [response.data, ...prev]);
     } catch (err: any) {
-      console.error("Failed to save simulation:", err);
-      setError(err.response?.data?.message || "Não foi possível salvar a simulação.");
+      setError(err.response?.data?.message || "Could not save simulation.");
       throw err;
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  const updateSimulation = useCallback(async (payload: SimulationUpdatePayload) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.patch<Simulation>('/patch-simulation', payload);
+      setSimulations(prev => prev.map(sim => sim.id === payload.simulationId ? response.data : sim));
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Could not update simulation.");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const deleteSimulation = useCallback(async (simulationId: number) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+        await apiClient.delete('/delete-Simulation', { data: { simulationId } });
+        setSimulations(prev => prev.filter(sim => sim.id !== simulationId));
+    } catch (err: any) {
+        setError(err.response?.data?.message || "Could not delete simulation.");
+        throw err;
+    } finally {
+        setIsLoading(false);
     }
   }, []);
 
@@ -56,6 +85,8 @@ export const useSimulations = () => {
     isLoading, 
     error, 
     fetchSimulations, 
-    addSimulation 
+    addSimulation,
+    updateSimulation,
+    deleteSimulation
   };
 };
