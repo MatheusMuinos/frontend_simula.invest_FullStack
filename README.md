@@ -31,6 +31,18 @@ Com base nas escolhas, o sistema classifica o perfil do usuário como:
 - Comentários sobre os riscos e a diversificação da carteira.
 - Sugestões de melhorias com base no perfil do investidor.
 
+### Comparador de Simulações:
+- Ferramenta para comparar múltiplas simulações lado a lado.
+- Visualização gráfica comparativa entre diferentes estratégias de investimento.
+- Análise de qual cenário oferece melhores retornos no mesmo período.
+- Interface intuitiva para seleção e comparação de simulações salvas.
+
+### Calculadora de Cenários "E Se?":
+- Simulação instantânea de diferentes cenários sem necessidade de salvar.
+- Teste rápido de variações nos parâmetros (valor inicial, contribuição mensal, período).
+- Comparação visual em tempo real entre cenário atual e modificado.
+- Análise do impacto de pequenas mudanças nos valores de investimento.
+
 ---
 
 ## Equipe
