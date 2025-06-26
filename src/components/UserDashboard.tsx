@@ -5,15 +5,60 @@ import { ResimulateModal } from './ResimulateModal';
 import { PortfolioOverview } from './PortfolioOverview';
 import { Loader } from './Loader';
 import styles from './Dashboard.module.css';
+import { useLanguage } from '../context/LanguageContext';
+import { translateText } from '../utils/translateText';
 
-const formatCurrency = (value: number): string => 
+const formatCurrency = (value: number): string =>
   value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+// Textos padrão em português
+const DEFAULT_TEXTS = {
+  title: 'Painel do Investidor',
+  historyTab: 'Histórico de Simulações',
+  portfolioTab: 'Meu Portfólio',
+  comingSoon: '(Em Breve)',
+  savedSimulations: 'Suas Simulações Salvas',
+  noSimulations: 'Você ainda não tem simulações salvas.',
+  confirmDelete: 'Tem certeza que deseja excluir esta simulação?',
+  edit: 'Editar',
+  delete: 'Excluir'
+};
+
 export const UserDashboard: React.FC = () => {
-  const { user } = useAuth(); 
+  const { user } = useAuth();
   const { simulations, isLoading, error, fetchSimulations, updateSimulation, deleteSimulation } = useSimulations();
   const [activeTab, setActiveTab] = useState<'historico' | 'investimentos'>('historico');
   const [editingSimulation, setEditingSimulation] = useState<Simulation | null>(null);
+  const { language } = useLanguage();
+  const [texts, setTexts] = useState(DEFAULT_TEXTS);
+
+  useEffect(() => {
+    const translateAll = async () => {
+      try {
+        // Não traduzir se já for português
+        if (language === 'pt') {
+          setTexts(DEFAULT_TEXTS);
+          return;
+        }
+
+        // Criar objeto com as traduções
+        const translatedTexts: Record<string, string> = {};
+        
+        // Traduzir cada texto individualmente
+        for (const [key, value] of Object.entries(DEFAULT_TEXTS)) {
+          translatedTexts[key] = await translateText(value, language);
+        }
+
+        setTexts(translatedTexts as typeof DEFAULT_TEXTS);
+      } catch (error) {
+        console.error('Translation error:', error);
+        // Em caso de erro, manter os textos padrão
+        setTexts(DEFAULT_TEXTS);
+      }
+    };
+
+    translateAll();
+  }, [language]);
 
   useEffect(() => {
     if (user && activeTab === 'historico') {
@@ -22,8 +67,12 @@ export const UserDashboard: React.FC = () => {
   }, [user, activeTab, fetchSimulations]);
 
   const handleDelete = async (simulationId: number) => {
-    if (window.confirm("Tem certeza que deseja excluir esta simulação?")) {
-      try { await deleteSimulation(simulationId); } catch (e) { console.error(e); }
+    if (window.confirm(texts.confirmDelete)) {
+      try {
+        await deleteSimulation(simulationId);
+      } catch (e) {
+        console.error(e);
+      }
     }
   };
 
@@ -32,7 +81,9 @@ export const UserDashboard: React.FC = () => {
     try {
       await updateSimulation({ simulationId: editingSimulation.id, ...updatedInputs });
       setEditingSimulation(null);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   if (!user) {
@@ -41,45 +92,66 @@ export const UserDashboard: React.FC = () => {
 
   return (
     <div className={styles.dashboardContainer}>
-      <h2 className={styles.dashboardTitle}>Painel do Investidor</h2>
+      <h2 className={styles.dashboardTitle}>{texts.title}</h2>
       <nav className={styles.dashboardNav}>
         <button
           className={`${styles.navButton} ${activeTab === 'historico' ? styles.active : ''}`}
           onClick={() => setActiveTab('historico')}
         >
-          Histórico de Simulações
+          {texts.historyTab}
         </button>
         <button
           className={`${styles.navButton} ${activeTab === 'investimentos' ? styles.active : ''}`}
           onClick={() => setActiveTab('investimentos')}
         >
-          Meu Portfólio <span className={styles.wipTag}>(Em Breve)</span>
+          {texts.portfolioTab} <span className={styles.wipTag}>{texts.comingSoon}</span>
         </button>
       </nav>
       <div className={styles.dashboardContent}>
         {error && <div className={styles.errorMessage}>{error}</div>}
         {activeTab === 'historico' && (
-          isLoading && !editingSimulation ? <Loader /> : (
+          isLoading && !editingSimulation ? (
+            <Loader />
+          ) : (
             <div className={styles.historySection}>
-              <h3>Suas Simulações Salvas</h3>
+              <h3>{texts.savedSimulations}</h3>
               {simulations.length > 0 ? (
                 <ul className={styles.simulationList}>
                   {simulations.map((sim) => (
-                    <SimulationCard key={sim.id} simulation={sim} onDelete={handleDelete} onEdit={setEditingSimulation} />
+                    <SimulationCard
+                      key={sim.id}
+                      simulation={sim}
+                      onDelete={handleDelete}
+                      onEdit={setEditingSimulation}
+                      texts={texts}
+                    />
                   ))}
                 </ul>
-              ) : (!isLoading && <p className={styles.emptyMessage}>Você ainda não tem simulações salvas.</p>)}
+              ) : (
+                !isLoading && <p className={styles.emptyMessage}>{texts.noSimulations}</p>
+              )}
             </div>
           )
         )}
         {activeTab === 'investimentos' && <PortfolioOverview />}
       </div>
-      {editingSimulation && <ResimulateModal simulation={editingSimulation} onSave={handleUpdate} onClose={() => setEditingSimulation(null)} />}
+      {editingSimulation && (
+        <ResimulateModal
+          simulation={editingSimulation}
+          onSave={handleUpdate}
+          onClose={() => setEditingSimulation(null)}
+        />
+      )}
     </div>
   );
 };
 
-const SimulationCard: React.FC<{ simulation: Simulation; onDelete: (id: number) => void; onEdit: (simulation: Simulation) => void; }> = ({ simulation, onDelete, onEdit }) => (
+const SimulationCard: React.FC<{
+  simulation: Simulation;
+  onDelete: (id: number) => void;
+  onEdit: (simulation: Simulation) => void;
+  texts: { edit: string; delete: string };
+}> = ({ simulation, onDelete, onEdit, texts }) => (
   <li className={styles.simulationCard}>
     <div className={styles.simulationInfo}>
       <strong>{simulation.tipo === 'acao' ? `Ação: ${simulation.nome}` : `Renda Fixa: ${simulation.nome}`}</strong>
@@ -89,8 +161,12 @@ const SimulationCard: React.FC<{ simulation: Simulation; onDelete: (id: number) 
       <span>Período: {simulation.meses} meses</span>
     </div>
     <div className={styles.cardActions}>
-      <button onClick={() => onEdit(simulation)} className={`${styles.actionButton} ${styles.editButton}`}>Editar</button>
-      <button onClick={() => onDelete(simulation.id)} className={`${styles.actionButton} ${styles.deleteButton}`}>Excluir</button>
+      <button onClick={() => onEdit(simulation)} className={`${styles.actionButton} ${styles.editButton}`}>
+        {texts.edit}
+      </button>
+      <button onClick={() => onDelete(simulation.id)} className={`${styles.actionButton} ${styles.deleteButton}`}>
+        {texts.delete}
+      </button>
     </div>
   </li>
 );
