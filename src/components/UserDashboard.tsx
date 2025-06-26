@@ -11,7 +11,6 @@ import { translateText } from '../utils/translateText';
 const formatCurrency = (value: number): string =>
   value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-// Textos padrão em português
 const DEFAULT_TEXTS = {
   title: 'Painel do Investidor',
   historyTab: 'Histórico de Simulações',
@@ -32,31 +31,29 @@ export const UserDashboard: React.FC = () => {
   const { language } = useLanguage();
   const [texts, setTexts] = useState(DEFAULT_TEXTS);
 
+  const [sortBy, setSortBy] = useState<'date' | 'investimento'>('date');
+  const [favoriteIds, setFavoriteIds] = useState<number[]>(() => {
+    const saved = localStorage.getItem('favorite_simulations');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   useEffect(() => {
     const translateAll = async () => {
       try {
-        // Não traduzir se já for português
         if (language === 'pt') {
           setTexts(DEFAULT_TEXTS);
           return;
         }
-
-        // Criar objeto com as traduções
         const translatedTexts: Record<string, string> = {};
-        
-        // Traduzir cada texto individualmente
         for (const [key, value] of Object.entries(DEFAULT_TEXTS)) {
           translatedTexts[key] = await translateText(value, language);
         }
-
         setTexts(translatedTexts as typeof DEFAULT_TEXTS);
       } catch (error) {
         console.error('Translation error:', error);
-        // Em caso de erro, manter os textos padrão
         setTexts(DEFAULT_TEXTS);
       }
     };
-
     translateAll();
   }, [language]);
 
@@ -86,9 +83,23 @@ export const UserDashboard: React.FC = () => {
     }
   };
 
-  if (!user) {
-    return null;
-  }
+  const toggleFavorite = (id: number) => {
+    const updated = favoriteIds.includes(id)
+      ? favoriteIds.filter((favId) => favId !== id)
+      : [...favoriteIds, id];
+    setFavoriteIds(updated);
+    localStorage.setItem('favorite_simulations', JSON.stringify(updated));
+  };
+
+  const sortedSimulations = [...simulations].sort((a, b) => {
+    if (sortBy === 'date') {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    } else {
+      return b.invest_inicial - a.invest_inicial;
+    }
+  });
+
+  if (!user) return null;
 
   return (
     <div className={styles.dashboardContainer}>
@@ -115,15 +126,24 @@ export const UserDashboard: React.FC = () => {
           ) : (
             <div className={styles.historySection}>
               <h3>{texts.savedSimulations}</h3>
-              {simulations.length > 0 ? (
+              <div className={styles.sortControls}>
+                <label>Ordenar por:</label>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'date' | 'investimento')}>
+                  <option value="date">Data</option>
+                  <option value="investimento">Investimento Inicial</option>
+                </select>
+              </div>
+              {sortedSimulations.length > 0 ? (
                 <ul className={styles.simulationList}>
-                  {simulations.map((sim) => (
+                  {sortedSimulations.map((sim) => (
                     <SimulationCard
                       key={sim.id}
                       simulation={sim}
                       onDelete={handleDelete}
                       onEdit={setEditingSimulation}
                       texts={texts}
+                      isFavorite={favoriteIds.includes(sim.id)}
+                      toggleFavorite={toggleFavorite}
                     />
                   ))}
                 </ul>
@@ -151,7 +171,9 @@ const SimulationCard: React.FC<{
   onDelete: (id: number) => void;
   onEdit: (simulation: Simulation) => void;
   texts: { edit: string; delete: string };
-}> = ({ simulation, onDelete, onEdit, texts }) => (
+  isFavorite: boolean;
+  toggleFavorite: (id: number) => void;
+}> = ({ simulation, onDelete, onEdit, texts, isFavorite, toggleFavorite }) => (
   <li className={styles.simulationCard}>
     <div className={styles.simulationInfo}>
       <strong>{simulation.tipo === 'acao' ? `Ação: ${simulation.nome}` : `Renda Fixa: ${simulation.nome}`}</strong>
@@ -161,6 +183,9 @@ const SimulationCard: React.FC<{
       <span>Período: {simulation.meses} meses</span>
     </div>
     <div className={styles.cardActions}>
+      <button onClick={() => toggleFavorite(simulation.id)} className={`${styles.actionButton} ${isFavorite ? styles.favorite : ''}`}>
+        {isFavorite ? '★' : '☆'}
+      </button>
       <button onClick={() => onEdit(simulation)} className={`${styles.actionButton} ${styles.editButton}`}>
         {texts.edit}
       </button>
