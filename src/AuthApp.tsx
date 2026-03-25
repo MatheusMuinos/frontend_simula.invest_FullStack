@@ -3,10 +3,10 @@ import { useAuth } from './auth/AuthContext';
 import { Login } from './auth/Login';
 import { Register } from './auth/Register';
 import App from './App';
+import { HomePage } from './pages/HomePage';
 
 export function AuthApp() {
-  const { isAuthenticated, isLoading }
- = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>Verificando autenticação...</div>;
@@ -15,20 +15,24 @@ export function AuthApp() {
   return (
     <Routes>
       <Route 
+        path="/" 
+        element={<HomePage />} 
+      />
+      <Route 
         path="/login" 
-        element={!isAuthenticated ? <Login /> : <Navigate to="/" replace />} 
+        element={!isAuthenticated ? <Login /> : <Navigate to="/app" replace />} 
       />
       <Route 
         path="/register" 
-        element={!isAuthenticated ? <Register /> : <Navigate to="/" replace />} 
+        element={!isAuthenticated ? <Register /> : <Navigate to="/app" replace />} 
       />
       <Route 
-        path="/" 
+        path="/app" 
         element={isAuthenticated ? <App /> : <Navigate to="/login" replace />} 
       />
       <Route 
         path="*" 
-        element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} 
+        element={<Navigate to="/" replace />} 
       />
     </Routes>
   );
