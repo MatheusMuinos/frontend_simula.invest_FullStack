@@ -17,7 +17,7 @@ function App() {
       <header>
         <nav className="conteiner">
           <div className="logo">
-            <a href="/">Simula<span>Invest</span></a>
+            <a href="/app">Simula<span>Invest</span></a>
           </div>
           <div className="user-actions">
             <button onClick={logout} className="botao botao-secundario">
