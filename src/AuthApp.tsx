@@ -3,7 +3,7 @@ import { useAuth } from './auth/AuthContext';
 import { Login } from './auth/Login';
 import { Register } from './auth/Register';
 import App from './App';
-import { LandingPage } from './pages/LandingPage';
+import { HomePage } from './pages/HomePage';
 
 export function AuthApp() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -16,7 +16,7 @@ export function AuthApp() {
     <Routes>
       <Route 
         path="/" 
-        element={<LandingPage />} 
+        element={<HomePage />} 
       />
       <Route 
         path="/login" 
